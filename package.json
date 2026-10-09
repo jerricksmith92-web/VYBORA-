@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
+    "@supabase/supabase-js": "latest",
     "vite": "latest",
     "react": "latest",
     "react-dom": "latest",
