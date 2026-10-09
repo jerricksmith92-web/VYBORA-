@@ -1,16 +1,13 @@
 -- VYBORA conversation-based messaging setup
 -- Run once in the Supabase SQL Editor for the project connected to the app.
 
--- The existing messages table uses UUID ids and conversation_id.
--- Add timestamps without replacing existing messages or columns.
 ALTER TABLE public.messages
   ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
 CREATE INDEX IF NOT EXISTS messages_conversation_created_idx
   ON public.messages (conversation_id, created_at);
 
--- Securely start or reuse a one-to-one conversation. The function creates
--- the conversation and both memberships in one transaction.
+-- Securely start or reuse a one-to-one conversation.
 CREATE OR REPLACE FUNCTION public.start_direct_conversation(other_user_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql
@@ -56,10 +53,11 @@ BEGIN
     VALUES (gen_random_uuid(), false, '')
     RETURNING id INTO conversation_uuid;
 
-    INSERT INTO public.conversation_members (conversation_id, user_id, joined_id)
+    -- Only use columns confirmed by the existing app schema.
+    INSERT INTO public.conversation_members (conversation_id, user_id)
     VALUES
-      (conversation_uuid, current_user_id, now()),
-      (conversation_uuid, other_user_id, now());
+      (conversation_uuid, current_user_id),
+      (conversation_uuid, other_user_id);
   END IF;
 
   RETURN conversation_uuid;
