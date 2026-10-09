@@ -31,6 +31,8 @@ function App() {
   const [profileSearch, setProfileSearch] = React.useState('');
   const [profiles, setProfiles] = React.useState([]);
   const [startingChatId, setStartingChatId] = React.useState('');
+  const [activeStory, setActiveStory] = React.useState(null);
+  const [exploreSearch, setExploreSearch] = React.useState('');
 
   React.useEffect(() => {
     if (!supabase) return undefined;
@@ -270,9 +272,9 @@ function App() {
 
   return <div className="app">
     <header>
-      <div className="brand"><span className="logo">V</span><span>VYBORA</span></div>
+      <button className="brand" onClick={() => setTab('Home')} aria-label="VYBORA home"><span className="logo">v.</span><span>vybora</span></button>
       <span className="tag">YOUR WORLD, YOUR PEOPLE</span>
-      <div className="avatar">{session?.user?.email?.[0]?.toUpperCase() || 'J'}</div>
+      <button className="avatar header-avatar" onClick={() => setTab('Profile')} aria-label="Open profile">{session?.user?.email?.[0]?.toUpperCase() || 'V'}</button>
     </header>
     <nav>{['Home', 'Explore', 'Messages', 'Notifications', 'Profile'].map((t) =>
       <button className={tab === t ? 'active' : ''} onClick={() => setTab(t)} key={t}>
@@ -291,7 +293,7 @@ function App() {
         <section className="stories">
           <div className="sectionhead"><h2>Stories</h2><span>See all →</span></div>
           <div className="storyrow">{['You', 'Ama', 'Kojo', 'Abena', 'Kwame'].map((n, i) =>
-            <button className="story" key={n} onClick={() => alert(i === 0 ? 'Story uploads will be connected next.' : n + '’s demo story')}>
+            <button className="story" key={n} onClick={() => setActiveStory({ name: n, initial: ['＋', 'A', 'K', 'A', 'K'][i], own: i === 0 })}>
               <div className={'ring ring' + i}><span>{['＋', 'A', 'K', 'A', 'K'][i]}</span></div><small>{n}</small>
             </button>
           )}</div>
@@ -315,8 +317,8 @@ function App() {
             <p className="posttext">{p.text}</p>
             <div className="postactions">
               <button onClick={() => setLiked({ ...liked, [p.id]: !liked[p.id] })} className={liked[p.id] ? 'liked' : ''}>{liked[p.id] ? '♥' : '♡'} {p.likes + (liked[p.id] ? 1 : 0)}</button>
-              <button onClick={() => alert('Comments will be connected next.')}>▢ Comment</button>
-              <button onClick={() => alert('Share feature is coming next.')}>↗ Share</button>
+              <button onClick={() => setChatNotice('Comments are on our community feature roadmap.')}>▢ Comment</button>
+              <button onClick={() => setChatNotice('Share links are coming in a future VYBORA update.')}>↗ Share</button>
               <button onClick={(e) => e.currentTarget.classList.toggle('saved')}>♧ Save</button>
             </div>
           </article>)}
@@ -376,9 +378,11 @@ function App() {
         </>}
         {authMessage && <p className="auth-message" role="status">{authMessage}</p>}
         {!supabaseConfigured && <p className="auth-message">Connection settings were not included in this build. Check repository variables and the latest deployment.</p>}
-      </section> : <section className="placeholder"><div className="bigicon">✦</div><h2>{tab}</h2><p>This area is part of VYBORA’s starter interface. We’ll connect it to real user data next.</p><button onClick={() => setTab('Home')}>Back to home</button></section>}
-      <footer>VYBORA © 2026 <span>Made for your world 💜</span></footer>
+      </section> : <section className="placeholder discovery-panel"><div className="bigicon">{tab === 'Explore' ? '⌕' : '♡'}</div><p className="eyebrow">{tab === 'Explore' ? 'FIND YOUR NEXT FAVOURITE' : 'THE LITTLE THINGS THAT CONNECT US'}</p><h2>{tab === 'Explore' ? 'Explore your world.' : 'Your activity.'}</h2><p>{tab === 'Explore' ? 'Discover moments, people and new perspectives. Search the community below.' : 'You’re all caught up. Updates will appear here as your community grows.'}</p>{tab === 'Explore' && <input className="explore-input" value={exploreSearch} onChange={(e) => setExploreSearch(e.target.value)} placeholder="Search posts or people…" />}{tab === 'Explore' && <div className="explore-results">{posts.filter(p => !exploreSearch.trim() || (p.text + ' ' + p.user).toLowerCase().includes(exploreSearch.toLowerCase())).map(p => <article className="post" key={p.id}><b>{p.user}</b><p className="posttext">{p.text}</p></article>)}</div>}<button onClick={() => setTab('Home')}>Back to home</button></section>}
+      <footer>VYBORA © 2026 <span>Made for your world ✦</span></footer>
     </main>
+    <nav className="mobile-nav">{[['Home','⌂'],['Explore','⌕'],['Create','＋'],['Messages','↗'],['Profile','◉']].map(([name,icon]) => <button key={name} className={tab === name ? 'active' : ''} onClick={() => name === 'Create' ? (setTab('Home'), document.querySelector('.composebody textarea')?.focus()) : setTab(name)}><span>{icon}</span><small>{name === 'Create' ? 'Post' : name}</small></button>)}</nav>
+    {activeStory && <div className="story-overlay" role="dialog" aria-modal="true" aria-label="Story viewer" onClick={() => setActiveStory(null)}><div className="story-viewer" onClick={(e) => e.stopPropagation()}><div className="story-viewer-top"><span className="story-progress"><i /></span><button onClick={() => setActiveStory(null)} aria-label="Close story">×</button></div><div className="story-viewer-content"><span className="story-viewer-avatar">{activeStory.initial}</span><p>{activeStory.own ? 'Your moment starts here.' : activeStory.name + '’s story'}</p><small>{activeStory.own ? 'Share the little things as they happen.' : 'A moment shared with the VYBORA community ✦'}</small>{activeStory.own && <button onClick={() => { setActiveStory(null); setTab('Home'); document.querySelector('.composebody textarea')?.focus(); }}>Create a post ↗</button>}</div></div></div>}
   </div>;
 }
 
