@@ -28,7 +28,11 @@ function App(){
     setAuthBusy(true);setAuthMessage('');
     try{
       if(authMode==='signup'){
-        const {data,error}=await supabase.auth.signUp({email:email.trim(),password});
+        const {data,error}=await supabase.auth.signUp({
+          email:email.trim(),
+          password,
+          options:{emailRedirectTo:'https://jerricksmith92-web.github.io/VYBORA-/'}
+        });
         if(error) throw error;
         if(data.session){setSession(data.session);setAuthMessage('Account created successfully!');}
         else setAuthMessage('Check your email for a confirmation link, then sign in.');
