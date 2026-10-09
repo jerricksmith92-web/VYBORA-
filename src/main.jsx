@@ -9,10 +9,12 @@ function App() {
   const [tab, setTab] = React.useState('Home');
   const [liked, setLiked] = React.useState({});
   const [draft, setDraft] = React.useState('');
-  const [posts, setPosts] = React.useState([
-    { id: 1, user: 'Ama K.', handle: '@amak', time: '12 min', text: 'Small moments, big memories. ✨', likes: 24 },
-    { id: 2, user: 'Kojo Mensah', handle: '@kojo', time: '1 hr', text: 'Building something new. One step at a time 🚀', likes: 11 }
-  ]);
+  const [posts, setPosts] = React.useState([]);
+  const [postBusy, setPostBusy] = React.useState(false);
+  const [postError, setPostError] = React.useState('');
+  const [postImage, setPostImage] = React.useState(null);
+  const [postImagePreview, setPostImagePreview] = React.useState('');
+  const postFileRef = React.useRef(null);
   const [session, setSession] = React.useState(null);
   const [authMode, setAuthMode] = React.useState('signin');
   const [email, setEmail] = React.useState('');
@@ -52,6 +54,113 @@ function App() {
       loadProfiles();
     }
   }, [tab, session?.user?.id]);
+
+  React.useEffect(() => {
+    if (session?.user?.id && supabase) loadPosts();
+    else setPosts([]);
+  }, [session?.user?.id]);
+
+  React.useEffect(() => {
+    return () => {
+      if (postImagePreview) URL.revokeObjectURL(postImagePreview);
+    };
+  }, [postImagePreview]);
+
+  async function loadPosts() {
+    if (!supabase) return;
+    setPostError('');
+    const { data, error } = await supabase
+      .from('posts')
+      .select('id,user_id,content,image_url,created_at')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) {
+      setPostError('Posts are not connected yet. Run the VYBORA social setup SQL in your Supabase SQL Editor. ' + error.message);
+      return;
+    }
+    const userIds = [...new Set((data || []).map((post) => post.user_id).filter(Boolean))];
+    let profileRows = [];
+    if (userIds.length) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id,username,display_name,avatar_url')
+        .in('id', userIds);
+      profileRows = profileData || [];
+    }
+    const profileMap = Object.fromEntries(profileRows.map((profile) => [profile.id, profile]));
+    setPosts((data || []).map((post) => {
+      const profile = profileMap[post.user_id] || {};
+      return {
+        id: post.id,
+        user: profile.display_name || profile.username || 'VYBORA member',
+        handle: profile.username ? '@' + profile.username : 'community member',
+        time: post.created_at ? new Date(post.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'just now',
+        text: post.content || '',
+        image_url: post.image_url || '',
+        likes: 0
+      };
+    }));
+  }
+
+  function choosePostImage(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setPostError('Choose an image file, please.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setPostError('Image must be 8 MB or smaller.');
+      return;
+    }
+    setPostError('');
+    setPostImage(file);
+    setPostImagePreview(URL.createObjectURL(file));
+  }
+
+  async function publishPost() {
+    const content = draft.trim();
+    if (!session?.user?.id || !supabase) {
+      setPostError('Sign in first to publish a post.');
+      setTab('Profile');
+      return;
+    }
+    if (!content && !postImage) {
+      setPostError('Write something or add a photo before posting.');
+      return;
+    }
+    setPostBusy(true);
+    setPostError('');
+    try {
+      let imageUrl = '';
+      if (postImage) {
+        const extension = (postImage.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+        const path = session.user.id + '/' + crypto.randomUUID() + '.' + extension;
+        const { error: uploadError } = await supabase.storage.from('post-media').upload(path, postImage, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: postImage.type
+        });
+        if (uploadError) throw uploadError;
+        imageUrl = supabase.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+      }
+      const { error: insertError } = await supabase.from('posts').insert({
+        user_id: session.user.id,
+        content,
+        image_url: imageUrl || null
+      });
+      if (insertError) throw insertError;
+      setDraft('');
+      setPostImage(null);
+      setPostImagePreview('');
+      if (postFileRef.current) postFileRef.current.value = '';
+      await loadPosts();
+    } catch (err) {
+      setPostError(err.message || 'Could not publish your post. Check the Supabase setup and try again.');
+    } finally {
+      setPostBusy(false);
+    }
+  }
 
   React.useEffect(() => {
     if (!supabase || !session || !activeChatId) {
@@ -299,29 +408,28 @@ function App() {
           )}</div>
         </section>
         <section className="composer">
-          <div className="avatar">{session?.user?.email?.[0]?.toUpperCase() || 'J'}</div>
+          <div className="avatar">{session?.user?.email?.[0]?.toUpperCase() || 'V'}</div>
           <div className="composebody">
-            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="What's happening in your world?" />
-            <div className="composefoot"><span>✧ Share a moment</span><button onClick={() => {
-              if (draft.trim()) {
-                setPosts([{ id: Date.now(), user: session?.user?.email?.split('@')[0] || 'You', handle: session?.user?.email || '@you', time: 'now', text: draft.trim(), likes: 0 }, ...posts]);
-                setDraft('');
-              }
-            }}>Post ↗</button></div>
+            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={session ? "What's happening in your world?" : "Sign in to share with your world…"} />
+            {postImagePreview && <div className="post-image-preview"><img src={postImagePreview} alt="Post preview" /><button type="button" onClick={() => { setPostImage(null); setPostImagePreview(''); if (postFileRef.current) postFileRef.current.value = ''; }}>Remove photo ×</button></div>}
+            <input ref={postFileRef} className="visually-hidden-file" type="file" accept="image/*" onChange={choosePostImage} />
+            <div className="composefoot"><button className="photo-pick" type="button" onClick={() => postFileRef.current?.click()}>＋ Photo</button><span>✧ Share a moment</span><button onClick={publishPost} disabled={postBusy}>{postBusy ? 'Posting…' : 'Post ↗'}</button></div>
           </div>
         </section>
+        {postError && <p className="post-alert" role="alert">{postError}</p>}
         <section className="feed">
-          <div className="sectionhead"><h2>Your feed</h2><span>For you ▾</span></div>
-          {posts.map((p) => <article className="post" key={p.id}>
-            <div className="posthead"><div className="avatar">{p.user[0]}</div><div><b>{p.user}</b><small>{p.handle} · {p.time}</small></div><button className="dots">•••</button></div>
-            <p className="posttext">{p.text}</p>
+          <div className="sectionhead"><h2>Your feed</h2><button className="refresh-button" onClick={loadPosts}>Refresh ↻</button></div>
+          {posts.length ? posts.map((p) => <article className="post" key={p.id}>
+            <div className="posthead"><div className="avatar">{p.user?.[0]?.toUpperCase() || 'V'}</div><div><b>{p.user}</b><small>{p.handle} · {p.time}</small></div><button className="dots" aria-label="More post options">•••</button></div>
+            {p.text && <p className="posttext">{p.text}</p>}
+            {p.image_url && <img className="post-image" src={p.image_url} alt={'Photo shared by ' + p.user} loading="lazy" />}
             <div className="postactions">
               <button onClick={() => setLiked({ ...liked, [p.id]: !liked[p.id] })} className={liked[p.id] ? 'liked' : ''}>{liked[p.id] ? '♥' : '♡'} {p.likes + (liked[p.id] ? 1 : 0)}</button>
-              <button onClick={() => setChatNotice('Comments are on our community feature roadmap.')}>▢ Comment</button>
-              <button onClick={() => setChatNotice('Share links are coming in a future VYBORA update.')}>↗ Share</button>
+              <button onClick={() => setChatNotice('Comments are the next community feature we are building.')}>▢ Comment</button>
+              <button onClick={() => { if (p.image_url) { navigator.clipboard?.writeText(p.image_url); setChatNotice('Photo link copied when clipboard access is available.'); } else setChatNotice('Share links are coming in a future VYBORA update.'); }}>↗ Share</button>
               <button onClick={(e) => e.currentTarget.classList.toggle('saved')}>♧ Save</button>
             </div>
-          </article>)}
+          </article>) : <div className="feed-empty"><span>✦</span><b>Your feed starts here</b><p>Share the first moment with your people.</p></div>}
         </section>
       </> : tab === 'Messages' ? <section className="messages-panel">
         <div className="messages-heading"><div><p className="eyebrow">PRIVATE CONVERSATIONS</p><h2>Messages</h2></div><button className="refresh-button" onClick={() => { loadChats(); loadProfiles(); }}>Refresh</button></div>
