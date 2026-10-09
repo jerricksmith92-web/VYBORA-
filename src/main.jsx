@@ -3,69 +3,383 @@ import { createRoot } from 'react-dom/client';
 import { supabase, supabaseConfigured } from './supabase.js';
 import './style.css';
 
-function App(){
-  const [tab,setTab]=React.useState('Home');
-  const [liked,setLiked]=React.useState({});
-  const [draft,setDraft]=React.useState('');
-  const [posts,setPosts]=React.useState([{id:1,user:'Ama K.',handle:'@amak',time:'12 min',text:'Small moments, big memories. ✨',likes:24},{id:2,user:'Kojo Mensah',handle:'@kojo',time:'1 hr',text:'Building something new. One step at a time 🚀',likes:11}]);
-  const [session,setSession]=React.useState(null);
-  const [authMode,setAuthMode]=React.useState('signin');
-  const [email,setEmail]=React.useState('');
-  const [password,setPassword]=React.useState('');
-  const [authBusy,setAuthBusy]=React.useState(false);
-  const [authMessage,setAuthMessage]=React.useState('');
+const APP_URL = 'https://jerricksmith92-web.github.io/VYBORA-/';
 
-  React.useEffect(()=>{
-    if(!supabase) return;
-    supabase.auth.getSession().then(({data})=>setSession(data.session));
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,nextSession)=>setSession(nextSession));
-    return ()=>subscription.unsubscribe();
-  },[]);
+function App() {
+  const [tab, setTab] = React.useState('Home');
+  const [liked, setLiked] = React.useState({});
+  const [draft, setDraft] = React.useState('');
+  const [posts, setPosts] = React.useState([
+    { id: 1, user: 'Ama K.', handle: '@amak', time: '12 min', text: 'Small moments, big memories. ✨', likes: 24 },
+    { id: 2, user: 'Kojo Mensah', handle: '@kojo', time: '1 hr', text: 'Building something new. One step at a time 🚀', likes: 11 }
+  ]);
+  const [session, setSession] = React.useState(null);
+  const [authMode, setAuthMode] = React.useState('signin');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [authBusy, setAuthBusy] = React.useState(false);
+  const [authMessage, setAuthMessage] = React.useState('');
 
-  async function handleAuth(e){
+  const [chatLoading, setChatLoading] = React.useState(false);
+  const [chatError, setChatError] = React.useState('');
+  const [chatNotice, setChatNotice] = React.useState('');
+  const [chatList, setChatList] = React.useState([]);
+  const [activeChatId, setActiveChatId] = React.useState('');
+  const [chatMessages, setChatMessages] = React.useState([]);
+  const [messageDraft, setMessageDraft] = React.useState('');
+  const [sendingMessage, setSendingMessage] = React.useState(false);
+  const [profileSearch, setProfileSearch] = React.useState('');
+  const [profiles, setProfiles] = React.useState([]);
+  const [startingChatId, setStartingChatId] = React.useState('');
+
+  React.useEffect(() => {
+    if (!supabase) return undefined;
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setChatList([]);
+      setChatMessages([]);
+      setActiveChatId('');
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  React.useEffect(() => {
+    if (tab === 'Messages' && session && supabase) {
+      loadChats();
+      loadProfiles();
+    }
+  }, [tab, session?.user?.id]);
+
+  React.useEffect(() => {
+    if (!supabase || !session || !activeChatId) {
+      setChatMessages([]);
+      return undefined;
+    }
+    loadMessages(activeChatId);
+    const channel = supabase
+      .channel('vybora-chat-' + activeChatId)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages',
+        filter: 'conversation_id=eq.' + activeChatId
+      }, (payload) => {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          setChatMessages((current) => {
+            if (current.some((message) => message.id === payload.new.id)) return current;
+            return [...current, payload.new].sort((a, b) => {
+              const at = new Date(a.created_at || 0).getTime();
+              const bt = new Date(b.created_at || 0).getTime();
+              return at - bt;
+            });
+          });
+        } else if (payload.eventType === 'UPDATE' && payload.new) {
+          setChatMessages((current) => current.map((message) => message.id === payload.new.id ? payload.new : message));
+        } else if (payload.eventType === 'DELETE' && payload.old) {
+          setChatMessages((current) => current.filter((message) => message.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeChatId, session?.user?.id]);
+
+  async function handleAuth(e) {
     e.preventDefault();
-    if(!supabase){setAuthMessage('Supabase is not configured yet. Check the GitHub Actions build variables.');return;}
-    setAuthBusy(true);setAuthMessage('');
-    try{
-      if(authMode==='signup'){
-        const {data,error}=await supabase.auth.signUp({
-          email:email.trim(),
+    if (!supabase) {
+      setAuthMessage('Supabase is not configured yet. Check the GitHub Actions build variables.');
+      return;
+    }
+    setAuthBusy(true);
+    setAuthMessage('');
+    try {
+      if (authMode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
           password,
-          options:{emailRedirectTo:'https://jerricksmith92-web.github.io/VYBORA-/'}
+          options: { emailRedirectTo: APP_URL }
         });
-        if(error) throw error;
-        if(data.session){setSession(data.session);setAuthMessage('Account created successfully!');}
-        else setAuthMessage('Check your email for a confirmation link, then sign in.');
-      }else{
-        const {data,error}=await supabase.auth.signInWithPassword({email:email.trim(),password});
-        if(error) throw error;
-        setSession(data.session);setAuthMessage('You are signed in.');
+        if (error) throw error;
+        if (data.session) {
+          setSession(data.session);
+          setAuthMessage('Account created successfully!');
+        } else {
+          setAuthMessage('Check your email for a confirmation link, then sign in.');
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) throw error;
+        setSession(data.session);
+        setAuthMessage('You are signed in.');
       }
-    }catch(err){setAuthMessage(err.message||'Could not complete authentication. Please try again.');}
-    finally{setAuthBusy(false);}
+    } catch (err) {
+      setAuthMessage(err.message || 'Could not complete authentication. Please try again.');
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
-  async function handleSignOut(){
-    if(supabase) await supabase.auth.signOut();
-    setSession(null);setAuthMessage('You have signed out.');
+  async function handleSignOut() {
+    if (supabase) await supabase.auth.signOut();
+    setSession(null);
+    setAuthMessage('You have signed out.');
+    setTab('Profile');
   }
+
+  async function loadChats() {
+    if (!supabase || !session?.user?.id) return;
+    setChatLoading(true);
+    setChatError('');
+    try {
+      const { data: memberships, error: memberError } = await supabase
+        .from('conversation_members')
+        .select('conversation_id,user_id')
+        .eq('user_id', session.user.id);
+      if (memberError) throw memberError;
+      const ids = [...new Set((memberships || []).map((row) => row.conversation_id).filter(Boolean))];
+      if (!ids.length) {
+        setChatList([]);
+        setActiveChatId('');
+        return;
+      }
+      const { data: conversations, error: conversationError } = await supabase
+        .from('conversations')
+        .select('id,is_group,title,created_at')
+        .in('id', ids);
+      if (conversationError) throw conversationError;
+      const { data: allMembers, error: allMembersError } = await supabase
+        .from('conversation_members')
+        .select('conversation_id,user_id')
+        .in('conversation_id', ids);
+      if (allMembersError) throw allMembersError;
+      const memberIds = [...new Set((allMembers || []).map((row) => row.user_id).filter((id) => id && id !== session.user.id))];
+      let profileRows = [];
+      if (memberIds.length) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id,username,display_name,avatar_url')
+          .in('id', memberIds);
+        if (error) throw error;
+        profileRows = data || [];
+      }
+      const profileMap = Object.fromEntries(profileRows.map((profile) => [profile.id, profile]));
+      const membersByConversation = {};
+      (allMembers || []).forEach((member) => {
+        if (!membersByConversation[member.conversation_id]) membersByConversation[member.conversation_id] = [];
+        membersByConversation[member.conversation_id].push(member.user_id);
+      });
+      const formatted = (conversations || []).map((conversation) => {
+        const otherIds = (membersByConversation[conversation.id] || []).filter((id) => id !== session.user.id);
+        const otherProfiles = otherIds.map((id) => profileMap[id]).filter(Boolean);
+        const label = conversation.is_group
+          ? (conversation.title || 'Group conversation')
+          : (otherProfiles[0]?.display_name || otherProfiles[0]?.username || 'Conversation');
+        return { ...conversation, label, otherProfiles, memberIds: membersByConversation[conversation.id] || [] };
+      }).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      setChatList(formatted);
+      setActiveChatId((current) => formatted.some((chat) => chat.id === current) ? current : (formatted[0]?.id || ''));
+    } catch (err) {
+      setChatError(err.message || 'Could not load conversations.');
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  async function loadProfiles() {
+    if (!supabase || !session?.user?.id) return;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id,username,display_name,avatar_url')
+      .neq('id', session.user.id)
+      .limit(100);
+    if (error) {
+      setChatError((current) => current || error.message || 'Could not load profiles.');
+      return;
+    }
+    setProfiles(data || []);
+  }
+
+  async function loadMessages(conversationId) {
+    if (!supabase || !conversationId) return;
+    const { data, error } = await supabase
+      .from('messages')
+      .select('id,conversation_id,sender_id,body,created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+    if (error) {
+      setChatError(error.message || 'Could not load messages.');
+      return;
+    }
+    setChatMessages(data || []);
+  }
+
+  async function sendMessage(e) {
+    e.preventDefault();
+    const body = messageDraft.trim();
+    if (!body || !activeChatId || !session?.user?.id || !supabase || sendingMessage) return;
+    setSendingMessage(true);
+    setChatError('');
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          id: crypto.randomUUID(),
+          conversation_id: activeChatId,
+          sender_id: session.user.id,
+          body
+        })
+        .select('id,conversation_id,sender_id,body,created_at')
+        .single();
+      if (error) throw error;
+      setChatMessages((current) => current.some((message) => message.id === data.id) ? current : [...current, data]);
+      setMessageDraft('');
+    } catch (err) {
+      setChatError(err.message || 'Message could not be sent.');
+    } finally {
+      setSendingMessage(false);
+    }
+  }
+
+  async function startConversation(profile) {
+    if (!supabase || !session?.user?.id || startingChatId) return;
+    setStartingChatId(profile.id);
+    setChatError('');
+    setChatNotice('');
+    try {
+      const { data, error } = await supabase.rpc('start_direct_conversation', { other_user_id: profile.id });
+      if (error) throw error;
+      const conversationId = typeof data === 'string' ? data : data?.id;
+      if (!conversationId) throw new Error('The database did not return a conversation ID.');
+      await loadChats();
+      setActiveChatId(conversationId);
+      setChatNotice('Conversation ready. You can send a message now.');
+      setProfileSearch('');
+    } catch (err) {
+      setChatError(err.message || 'Could not start the conversation.');
+    } finally {
+      setStartingChatId('');
+    }
+  }
+
+  const activeChat = chatList.find((chat) => chat.id === activeChatId);
+  const filteredProfiles = profiles.filter((profile) => {
+    const needle = profileSearch.trim().toLowerCase();
+    if (!needle) return false;
+    return [profile.username, profile.display_name].some((value) => (value || '').toLowerCase().includes(needle));
+  });
 
   return <div className="app">
-    <header><div className="brand"><span className="logo">V</span><span>VYBORA</span></div><span className="tag">YOUR WORLD, YOUR PEOPLE</span><div className="avatar">{session?.user?.email?.[0]?.toUpperCase()||'J'}</div></header>
-    <nav>{['Home','Explore','Messages','Notifications','Profile'].map(t=><button className={tab===t?'active':''} onClick={()=>setTab(t)} key={t}>{({Home:'⌂',Explore:'⌕',Messages:'▤',Notifications:'♡',Profile:'◉'})[t]} <span>{t}</span></button>)}</nav>
+    <header>
+      <div className="brand"><span className="logo">V</span><span>VYBORA</span></div>
+      <span className="tag">YOUR WORLD, YOUR PEOPLE</span>
+      <div className="avatar">{session?.user?.email?.[0]?.toUpperCase() || 'J'}</div>
+    </header>
+    <nav>{['Home', 'Explore', 'Messages', 'Notifications', 'Profile'].map((t) =>
+      <button className={tab === t ? 'active' : ''} onClick={() => setTab(t)} key={t}>
+        {({ Home: '⌂', Explore: '⌕', Messages: '▤', Notifications: '♡', Profile: '◉' })[t]} <span>{t}</span>
+      </button>
+    )}</nav>
     <main>
-      <section className="welcome"><p className="eyebrow">YOUR SPACE. YOUR PEOPLE.</p><h1>Stay close to<br/><em>your world.</em></h1><p className="muted">Share your moments. Find your people. Be yourself.</p><div className="pills"><span>✦ Your community</span><span>◉ Real moments</span></div></section>
-      {tab==='Home'?<>
-        <section className="stories"><div className="sectionhead"><h2>Stories</h2><span>See all →</span></div><div className="storyrow">{['You','Ama','Kojo','Abena','Kwame'].map((n,i)=><button className="story" key={n} onClick={()=>alert(i===0?'Story uploads will be connected next.':n+'’s demo story')}><div className={'ring ring'+i}><span>{['＋','A','K','A','K'][i]}</span></div><small>{n}</small></button>)}</div></section>
-        <section className="composer"><div className="avatar">{session?.user?.email?.[0]?.toUpperCase()||'J'}</div><div className="composebody"><textarea value={draft} onChange={e=>setDraft(e.target.value)} placeholder="What's happening in your world?"/><div className="composefoot"><span>✧ Share a moment</span><button onClick={()=>{if(draft.trim()){setPosts([{id:Date.now(),user:session?.user?.email?.split('@')[0]||'You',handle:session?.user?.email||'@you',time:'now',text:draft.trim(),likes:0},...posts]);setDraft('')}}}>Post ↗</button></div></div></section>
-        <section className="feed"><div className="sectionhead"><h2>Your feed</h2><span>For you ▾</span></div>{posts.map(p=><article className="post" key={p.id}><div className="posthead"><div className="avatar">{p.user[0]}</div><div><b>{p.user}</b><small>{p.handle} · {p.time}</small></div><button className="dots">•••</button></div><p className="posttext">{p.text}</p><div className="postactions"><button onClick={()=>setLiked({...liked,[p.id]:!liked[p.id]})} className={liked[p.id]?'liked':''}>{liked[p.id]?'♥':'♡'} {p.likes+(liked[p.id]?1:0)}</button><button onClick={()=>alert('Comments will be connected when the backend is added.')}>▢ Comment</button><button onClick={()=>alert('Share feature is coming next.')}>↗ Share</button><button onClick={e=>e.currentTarget.classList.toggle('saved')}>♧ Save</button></div></article>)}</section>
-      </>:tab==='Profile'?<section className="placeholder auth-panel"><div className="bigicon">◉</div><h2>{session?'Your account':'Join VYBORA'}</h2>{session?<><p>You are signed in as <b>{session.user.email}</b>.</p><button onClick={handleSignOut}>Sign out</button></>:<>
-        <p>Create an account or sign in to prepare for private messaging.</p>
-        <div className="auth-tabs"><button className={authMode==='signin'?'selected':''} onClick={()=>{setAuthMode('signin');setAuthMessage('')}}>Sign in</button><button className={authMode==='signup'?'selected':''} onClick={()=>{setAuthMode('signup');setAuthMessage('')}}>Create account</button></div>
-        <form className="auth-form" onSubmit={handleAuth}><label>Email address</label><input type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/><label>Password</label><input type="password" autoComplete={authMode==='signup'?'new-password':'current-password'} minLength={6} required value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 6 characters"/><button type="submit" disabled={authBusy}>{authBusy?'Please wait…':authMode==='signup'?'Create account':'Sign in'}</button></form>
-      </>}{authMessage&&<p className="auth-message" role="status">{authMessage}</p>}{!supabaseConfigured&&<p className="auth-message">Connection settings were not included in this build. Check repository variables and the latest deployment.</p>}</section>:<section className="placeholder"><div className="bigicon">✦</div><h2>{tab}</h2><p>{tab==='Messages'?'Real conversations are our next step. Sign-in is being prepared first so chats can be private.':'This area is part of VYBORA’s starter interface. We’ll connect it to real user data next.'}</p><button onClick={()=>setTab(tab==='Messages'?'Profile':'Home')}>{tab==='Messages'?'Set up your account':'Back to home'}</button></section>}
+      <section className="welcome">
+        <p className="eyebrow">YOUR SPACE. YOUR PEOPLE.</p>
+        <h1>Stay close to<br /><em>your world.</em></h1>
+        <p className="muted">Share your moments. Find your people. Be yourself.</p>
+        <div className="pills"><span>✦ Your community</span><span>◉ Real moments</span></div>
+      </section>
+
+      {tab === 'Home' ? <>
+        <section className="stories">
+          <div className="sectionhead"><h2>Stories</h2><span>See all →</span></div>
+          <div className="storyrow">{['You', 'Ama', 'Kojo', 'Abena', 'Kwame'].map((n, i) =>
+            <button className="story" key={n} onClick={() => alert(i === 0 ? 'Story uploads will be connected next.' : n + '’s demo story')}>
+              <div className={'ring ring' + i}><span>{['＋', 'A', 'K', 'A', 'K'][i]}</span></div><small>{n}</small>
+            </button>
+          )}</div>
+        </section>
+        <section className="composer">
+          <div className="avatar">{session?.user?.email?.[0]?.toUpperCase() || 'J'}</div>
+          <div className="composebody">
+            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="What's happening in your world?" />
+            <div className="composefoot"><span>✧ Share a moment</span><button onClick={() => {
+              if (draft.trim()) {
+                setPosts([{ id: Date.now(), user: session?.user?.email?.split('@')[0] || 'You', handle: session?.user?.email || '@you', time: 'now', text: draft.trim(), likes: 0 }, ...posts]);
+                setDraft('');
+              }
+            }}>Post ↗</button></div>
+          </div>
+        </section>
+        <section className="feed">
+          <div className="sectionhead"><h2>Your feed</h2><span>For you ▾</span></div>
+          {posts.map((p) => <article className="post" key={p.id}>
+            <div className="posthead"><div className="avatar">{p.user[0]}</div><div><b>{p.user}</b><small>{p.handle} · {p.time}</small></div><button className="dots">•••</button></div>
+            <p className="posttext">{p.text}</p>
+            <div className="postactions">
+              <button onClick={() => setLiked({ ...liked, [p.id]: !liked[p.id] })} className={liked[p.id] ? 'liked' : ''}>{liked[p.id] ? '♥' : '♡'} {p.likes + (liked[p.id] ? 1 : 0)}</button>
+              <button onClick={() => alert('Comments will be connected next.')}>▢ Comment</button>
+              <button onClick={() => alert('Share feature is coming next.')}>↗ Share</button>
+              <button onClick={(e) => e.currentTarget.classList.toggle('saved')}>♧ Save</button>
+            </div>
+          </article>)}
+        </section>
+      </> : tab === 'Messages' ? <section className="messages-panel">
+        <div className="messages-heading"><div><p className="eyebrow">PRIVATE CONVERSATIONS</p><h2>Messages</h2></div><button className="refresh-button" onClick={() => { loadChats(); loadProfiles(); }}>Refresh</button></div>
+        {!session ? <div className="chat-empty"><div className="bigicon">✉</div><h3>Sign in to message</h3><p>Your conversations will appear here after you sign in.</p><button onClick={() => setTab('Profile')}>Go to sign in</button></div> : <>
+          {chatError && <p className="chat-alert" role="alert">{chatError}</p>}
+          {chatNotice && <p className="chat-notice" role="status">{chatNotice}</p>}
+          <div className="new-chat">
+            <label htmlFor="profile-search">Start a conversation</label>
+            <input id="profile-search" value={profileSearch} onChange={(e) => setProfileSearch(e.target.value)} placeholder="Search username or display name" />
+            {profileSearch.trim() && <div className="profile-results">
+              {filteredProfiles.length ? filteredProfiles.map((profile) => <div className="profile-result" key={profile.id}>
+                <div className="mini-avatar">{(profile.display_name || profile.username || '?')[0].toUpperCase()}</div>
+                <div className="profile-result-name"><b>{profile.display_name || profile.username || 'VYBORA user'}</b><small>{profile.username ? '@' + profile.username : ''}</small></div>
+                <button disabled={!!startingChatId} onClick={() => startConversation(profile)}>{startingChatId === profile.id ? 'Opening…' : 'Message'}</button>
+              </div>) : <p className="search-hint">No matching profiles found.</p>}
+            </div>}
+          </div>
+          <div className="chat-layout">
+            <aside className="chat-list">
+              <div className="chat-list-heading">Your chats {chatLoading ? '· Loading…' : ''}</div>
+              {chatList.length ? chatList.map((chat) => <button key={chat.id} className={'chat-list-item ' + (chat.id === activeChatId ? 'selected' : '')} onClick={() => { setActiveChatId(chat.id); setChatError(''); setChatNotice(''); }}>
+                <div className="mini-avatar">{(chat.label || 'C')[0].toUpperCase()}</div><span className="chat-list-label">{chat.label}</span>{chat.is_group && <small>Group</small>}
+              </button>) : !chatLoading ? <p className="search-hint">No conversations yet. Search for a person above to start one.</p> : null}
+            </aside>
+            <section className="chat-thread">
+              {activeChat ? <>
+                <div className="thread-heading"><div className="mini-avatar">{(activeChat.label || 'C')[0].toUpperCase()}</div><div><b>{activeChat.label}</b><small>{activeChat.is_group ? 'Group conversation' : 'Private conversation'}</small></div></div>
+                <div className="message-list" aria-live="polite">
+                  {chatMessages.length ? chatMessages.map((message) => <div key={message.id} className={'message-row ' + (message.sender_id === session.user.id ? 'mine' : 'theirs')}>
+                    <div className="message-bubble"><p>{message.body}</p><small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
+                  </div>) : <p className="search-hint thread-empty">No messages yet. Say hello 👋</p>}
+                </div>
+                <form className="message-composer" onSubmit={sendMessage}>
+                  <input value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} maxLength={5000} placeholder="Write a message…" aria-label="Write a message" />
+                  <button type="submit" disabled={sendingMessage || !messageDraft.trim()}>{sendingMessage ? 'Sending…' : 'Send ↗'}</button>
+                </form>
+              </> : <div className="chat-empty"><div className="bigicon">✉</div><h3>Your conversations</h3><p>Choose a chat or search for a person above to begin.</p></div>}
+            </section>
+          </div>
+        </>}
+      </section> : tab === 'Profile' ? <section className="placeholder auth-panel">
+        <div className="bigicon">◉</div><h2>{session ? 'Your account' : 'Join VYBORA'}</h2>
+        {session ? <><p>You are signed in as <b>{session.user.email}</b>.</p><button onClick={handleSignOut}>Sign out</button></> : <>
+          <p>Create an account or sign in to message your people.</p>
+          <div className="auth-tabs">
+            <button className={authMode === 'signin' ? 'selected' : ''} onClick={() => { setAuthMode('signin'); setAuthMessage(''); }}>Sign in</button>
+            <button className={authMode === 'signup' ? 'selected' : ''} onClick={() => { setAuthMode('signup'); setAuthMessage(''); }}>Create account</button>
+          </div>
+          <form className="auth-form" onSubmit={handleAuth}>
+            <label>Email address</label><input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            <label>Password</label><input type="password" autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} minLength={6} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" />
+            <button type="submit" disabled={authBusy}>{authBusy ? 'Please wait…' : authMode === 'signup' ? 'Create account' : 'Sign in'}</button>
+          </form>
+        </>}
+        {authMessage && <p className="auth-message" role="status">{authMessage}</p>}
+        {!supabaseConfigured && <p className="auth-message">Connection settings were not included in this build. Check repository variables and the latest deployment.</p>}
+      </section> : <section className="placeholder"><div className="bigicon">✦</div><h2>{tab}</h2><p>This area is part of VYBORA’s starter interface. We’ll connect it to real user data next.</p><button onClick={() => setTab('Home')}>Back to home</button></section>}
       <footer>VYBORA © 2026 <span>Made for your world 💜</span></footer>
     </main>
-  </div>
+  </div>;
 }
-createRoot(document.getElementById('root')).render(<App/>);
+
+createRoot(document.getElementById('root')).render(<App />);
