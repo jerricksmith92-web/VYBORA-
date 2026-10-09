@@ -1,4 +1,4 @@
--- VYBORA persistent posts and photo uploads
+-- VYBORA persistent posts, photo uploads, and video uploads
 -- Run this whole file in Supabase Dashboard → SQL Editor → New query.
 create table if not exists public.posts (
   id uuid primary key default gen_random_uuid(),
@@ -27,9 +27,9 @@ create policy "Users can delete their own posts"
   on public.posts for delete to authenticated using (auth.uid() = user_id);
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('post-media', 'post-media', true, 8388608, array['image/jpeg','image/png','image/webp','image/gif','image/avif'])
-on conflict (id) do update set public = true, file_size_limit = 8388608,
-  allowed_mime_types = array['image/jpeg','image/png','image/webp','image/gif','image/avif'];
+values ('post-media', 'post-media', true, 52428800, array['image/jpeg','image/png','image/webp','image/gif','image/avif','image/heic','image/heif','video/mp4','video/quicktime','video/webm','video/3gpp','video/x-m4v'])
+on conflict (id) do update set public = true, file_size_limit = 52428800,
+  allowed_mime_types = array['image/jpeg','image/png','image/webp','image/gif','image/avif','image/heic','image/heif','video/mp4','video/quicktime','video/webm','video/3gpp','video/x-m4v'];
 
 drop policy if exists "Post images are publicly readable" on storage.objects;
 create policy "Post images are publicly readable"
