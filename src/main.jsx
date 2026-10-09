@@ -13,6 +13,7 @@ function App() {
   const [postBusy, setPostBusy] = React.useState(false);
   const [postError, setPostError] = React.useState('');
   const [postImage, setPostImage] = React.useState(null);
+  const [postMediaType, setPostMediaType] = React.useState('');
   const [postImagePreview, setPostImagePreview] = React.useState('');
   const postFileRef = React.useRef(null);
   const [session, setSession] = React.useState(null);
@@ -105,16 +106,22 @@ function App() {
   function choosePostImage(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setPostError('Choose an image file, please.');
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    if (!isImage && !isVideo) {
+      setPostError('Choose a photo or video from your library.');
+      event.target.value = '';
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setPostError('Image must be 8 MB or smaller.');
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 8 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setPostError(isVideo ? 'Video must be 50 MB or smaller.' : 'Photo must be 8 MB or smaller.');
+      event.target.value = '';
       return;
     }
     setPostError('');
     setPostImage(file);
+    setPostMediaType(isVideo ? 'video' : 'image');
     setPostImagePreview(URL.createObjectURL(file));
   }
 
@@ -126,7 +133,7 @@ function App() {
       return;
     }
     if (!content && !postImage) {
-      setPostError('Write something or add a photo before posting.');
+      setPostError('Write something or add a photo or video before posting.');
       return;
     }
     setPostBusy(true);
@@ -152,6 +159,7 @@ function App() {
       if (insertError) throw insertError;
       setDraft('');
       setPostImage(null);
+      setPostMediaType('');
       setPostImagePreview('');
       if (postFileRef.current) postFileRef.current.value = '';
       await loadPosts();
@@ -411,9 +419,9 @@ function App() {
           <div className="avatar">{session?.user?.email?.[0]?.toUpperCase() || 'V'}</div>
           <div className="composebody">
             <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={session ? "What's happening in your world?" : "Sign in to share with your world…"} />
-            {postImagePreview && <div className="post-image-preview"><img src={postImagePreview} alt="Post preview" /><button type="button" onClick={() => { setPostImage(null); setPostImagePreview(''); if (postFileRef.current) postFileRef.current.value = ''; }}>Remove photo ×</button></div>}
-            <input ref={postFileRef} className="visually-hidden-file" type="file" accept="image/*" onChange={choosePostImage} />
-            <div className="composefoot"><button className="photo-pick" type="button" onClick={() => postFileRef.current?.click()}>＋ Photo</button><span>✧ Share a moment</span><button onClick={publishPost} disabled={postBusy}>{postBusy ? 'Posting…' : 'Post ↗'}</button></div>
+            {postImagePreview && <div className="post-image-preview">{postMediaType === 'video' ? <video src={postImagePreview} controls playsInline preload="metadata" /> : <img src={postImagePreview} alt="Post preview" />}<button type="button" onClick={() => { setPostImage(null); setPostMediaType(''); setPostImagePreview(''); if (postFileRef.current) postFileRef.current.value = ''; }}>Remove media ×</button></div>}
+            <input ref={postFileRef} className="visually-hidden-file" type="file" accept="image/*,video/*" onChange={choosePostImage} />
+            <div className="composefoot"><button className="photo-pick" type="button" onClick={() => { setPostError(''); postFileRef.current?.click(); }}>＋ Photo / Video</button><span>✧ Share a moment</span><button onClick={publishPost} disabled={postBusy}>{postBusy ? 'Posting…' : 'Post ↗'}</button></div>
           </div>
         </section>
         {postError && <p className="post-alert" role="alert">{postError}</p>}
@@ -422,7 +430,7 @@ function App() {
           {posts.length ? posts.map((p) => <article className="post" key={p.id}>
             <div className="posthead"><div className="avatar">{p.user?.[0]?.toUpperCase() || 'V'}</div><div><b>{p.user}</b><small>{p.handle} · {p.time}</small></div><button className="dots" aria-label="More post options">•••</button></div>
             {p.text && <p className="posttext">{p.text}</p>}
-            {p.image_url && <img className="post-image" src={p.image_url} alt={'Photo shared by ' + p.user} loading="lazy" />}
+            {p.image_url && (p.image_url.match(/\.(mp4|mov|webm|m4v)(\?|$)/i) ? <video className="post-image post-video" src={p.image_url} controls playsInline preload="metadata" /> : <img className="post-image" src={p.image_url} alt={'Photo shared by ' + p.user} loading="lazy" />)}
             <div className="postactions">
               <button onClick={() => setLiked({ ...liked, [p.id]: !liked[p.id] })} className={liked[p.id] ? 'liked' : ''}>{liked[p.id] ? '♥' : '♡'} {p.likes + (liked[p.id] ? 1 : 0)}</button>
               <button onClick={() => setChatNotice('Comments are the next community feature we are building.')}>▢ Comment</button>
