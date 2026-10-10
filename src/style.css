@@ -329,3 +329,9 @@ nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
 .explore-community .people-row .people-open-profile .people-copy small{color:#343b25!important;font-size:12px;font-weight:750;line-height:1.4;overflow-wrap:anywhere;word-break:break-word}
 .explore-community .people-row .people-open-profile{background:var(--vy-accent,#c5ff67);border-radius:10px;padding:8px 10px;min-height:62px}
 @media(max-width:560px){.explore-community .people-row .people-open-profile{padding:8px;gap:8px}.explore-community .people-row .people-open-profile .people-copy b{font-size:13px}.explore-community .people-row .people-open-profile .people-copy small{font-size:11px}}
+
+
+/* Fix unreadable author name/handle on lime Explore community-post header */
+.explore-community .explore-post-author-button{background:var(--vy-accent,#c5ff67)!important;color:#171a12!important;border-radius:14px;padding:14px 16px!important;margin-bottom:10px}
+.explore-community .explore-post-author-button b{color:#171a12!important;font-size:15px;font-weight:800;line-height:1.35}
+.explore-community .explore-post-author-button small{color:#343b25!important;font-size:13px;font-weight:750;line-height:1.4;overflow-wrap:anywhere;word-break:break-word}
