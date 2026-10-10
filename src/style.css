@@ -255,3 +255,25 @@ nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
 @keyframes typingPulse{0%,60%,100%{opacity:.25}30%{opacity:1}}
 @keyframes typingFadeIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.typing-indicator,.typing-indicator span{animation:none}}
+
+
+/* Instagram-style profile and follow controls */
+.profile-handle{color:#a99bb9;font-size:13px;margin-top:-8px;overflow-wrap:anywhere}
+.follow-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0 22px;padding:16px 10px;border:1px solid #34283f;border-radius:16px;background:rgba(255,255,255,.025)}
+.follow-stats>div{display:flex;flex-direction:column;gap:4px;align-items:center}
+.follow-stats b{font-family:'Space Grotesk',sans-serif;font-size:22px;color:#f8f4ff}
+.follow-stats small{font-size:11px;color:#a99bb9}
+.people-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 10px;text-align:left}
+.people-heading h3{margin:0;font-size:16px}
+.people-heading span{font-size:11px;color:#a99bb9}
+.people-list{display:flex;flex-direction:column;gap:8px;margin:10px 0 18px;text-align:left}
+.people-row{display:flex;align-items:center;gap:11px;padding:11px;border:1px solid #34283f;border-radius:14px;background:rgba(255,255,255,.025);min-width:0}
+.people-avatar{width:42px;height:42px;flex:0 0 42px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#7545f5,#c5ff67);color:#17131e;font-weight:800}
+.people-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.people-copy b{font-size:13px;overflow-wrap:anywhere;color:#f5f3fa}
+.people-copy small{font-size:11px;color:#a99bb9;overflow-wrap:anywhere}
+.follow-button,.following-button{border:1px solid transparent;border-radius:10px;padding:9px 13px;font-weight:750;font-size:12px;flex-shrink:0}
+.follow-button{background:var(--vy-accent,#c5ff67);color:#171a12}
+.following-button{background:#211b2b;border-color:#514160;color:#ded2ed}
+.follow-button:disabled,.following-button:disabled{opacity:.6}
+@media(max-width:560px){.follow-stats{margin:14px 0 18px;padding:13px 8px}.follow-stats b{font-size:20px}.people-row{padding:9px;gap:8px}.people-avatar{width:37px;height:37px;flex-basis:37px}.follow-button,.following-button{padding:9px 10px}}
