@@ -41,6 +41,10 @@
 .chat-list-label{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 .chat-list-item>small{font-size:9px;color:#a996c3}
 .chat-thread{display:flex;flex-direction:column;background:#0e0c13;min-height:380px}
+.chat-back-button{display:none;background:transparent;border:0;color:#c5ff67;padding:5px 8px 5px 0;font-size:12px;white-space:nowrap}
+.thread-person{display:flex;flex-direction:column;min-width:0}
+.thread-person b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 .thread-heading{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid #2b2533}
 .thread-heading b{font-size:13px;display:block}
 .thread-heading small{display:block;color:#9d91ad;font-size:10px;margin-top:4px}
@@ -70,8 +74,15 @@
 @media(max-width:560px){
   .messages-panel{padding:12px}
   .chat-layout{grid-template-columns:minmax(0,1fr);min-height:0}
-  .chat-list{max-height:190px;overflow-y:auto}
+  .chat-list{max-height:none;overflow-y:auto}
+  .chat-list-in-thread{display:none}
+  .chat-list-only{display:block}
   .chat-thread{min-height:360px}
+  .chat-list-only + .chat-thread{display:none}
+  .chat-list-in-thread + .chat-thread{display:flex}
+  .chat-back-button{display:inline-flex;align-items:center}
+  .thread-heading{gap:8px}
+
   .message-list{max-height:360px}
   .profile-result{gap:7px;padding:8px}
   .profile-result button{padding:8px}
