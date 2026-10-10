@@ -35,6 +35,7 @@ function App() {
   const [chatList, setChatList] = React.useState([]);
   const [activeChatId, setActiveChatId] = React.useState('');
   const [chatMessages, setChatMessages] = React.useState([]);
+  const messageListRef = React.useRef(null);
   const [messageDraft, setMessageDraft] = React.useState('');
   const [typingUserId, setTypingUserId] = React.useState('');
   const typingChannelRef = React.useRef(null);
@@ -411,6 +412,7 @@ function App() {
               return at - bt;
             });
           });
+          loadChats();
         } else if (payload.eventType === 'UPDATE' && payload.new) {
           setChatMessages((current) => current.map((message) => message.id === payload.new.id ? payload.new : message));
         } else if (payload.eventType === 'DELETE' && payload.old) {
@@ -510,6 +512,17 @@ function App() {
         profileRows = data || [];
       }
       const profileMap = Object.fromEntries(profileRows.map((profile) => [profile.id, profile]));
+      const { data: recentMessages, error: recentMessageError } = await supabase
+        .from('messages')
+        .select('id,conversation_id,sender_id,body,created_at')
+        .in('conversation_id', ids)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (recentMessageError) throw recentMessageError;
+      const latestByConversation = {};
+      (recentMessages || []).forEach((message) => {
+        if (!latestByConversation[message.conversation_id]) latestByConversation[message.conversation_id] = message;
+      });
       const membersByConversation = {};
       (allMembers || []).forEach((member) => {
         if (!membersByConversation[member.conversation_id]) membersByConversation[member.conversation_id] = [];
@@ -521,8 +534,16 @@ function App() {
         const label = conversation.is_group
           ? (conversation.title || 'Group conversation')
           : (otherProfiles[0]?.display_name || otherProfiles[0]?.username || 'Conversation');
-        return { ...conversation, label, otherProfiles, memberIds: membersByConversation[conversation.id] || [] };
-      }).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        const lastMessage = latestByConversation[conversation.id] || null;
+        return {
+          ...conversation,
+          label,
+          otherProfiles,
+          memberIds: membersByConversation[conversation.id] || [],
+          lastMessage,
+          lastActivityAt: lastMessage?.created_at || conversation.created_at
+        };
+      }).sort((a, b) => new Date(b.lastActivityAt || 0).getTime() - new Date(a.lastActivityAt || 0).getTime());
       setChatList(formatted);
       setActiveChatId((current) => formatted.some((chat) => chat.id === current) ? current : (formatted[0]?.id || ''));
     } catch (err) {
@@ -573,6 +594,12 @@ function App() {
     }
     setChatMessages(data || []);
   }
+
+  React.useEffect(() => {
+    const list = messageListRef.current;
+    if (!list) return;
+    list.scrollTop = list.scrollHeight;
+  }, [chatMessages, activeChatId]);
 
   function handleMessageDraftChange(value) {
     setMessageDraft(value);
@@ -722,13 +749,19 @@ function App() {
             <aside className="chat-list">
               <div className="chat-list-heading">Your chats {chatLoading ? '· Loading…' : ''}</div>
               {chatList.length ? chatList.map((chat) => <button key={chat.id} className={'chat-list-item ' + (chat.id === activeChatId ? 'selected' : '')} onClick={() => { setActiveChatId(chat.id); setChatError(''); setChatNotice(''); }}>
-                <div className="mini-avatar">{(chat.label || 'C')[0].toUpperCase()}</div><span className="chat-list-copy"><span className="chat-list-label">{chat.label}</span>{!chat.is_group && <small className={(chat.otherProfiles?.[0]?.last_seen_at && Date.now() - new Date(chat.otherProfiles[0].last_seen_at).getTime() < 90000) ? 'presence-online' : 'presence-offline'}>{presenceLabel(chat.otherProfiles?.[0])}</small>}</span>{chat.is_group && <small>Group</small>}
+                <div className="mini-avatar">{(chat.label || 'C')[0].toUpperCase()}</div>
+                <span className="chat-list-copy">
+                  <span className="chat-list-label">{chat.label}</span>
+                  <small className="chat-preview">{chat.lastMessage ? (chat.lastMessage.sender_id === session.user.id ? 'You: ' : '') + chat.lastMessage.body : 'No messages yet'}</small>
+                  {!chat.is_group && <small className={(chat.otherProfiles?.[0]?.last_seen_at && Date.now() - new Date(chat.otherProfiles[0].last_seen_at).getTime() < 90000) ? 'presence-online' : 'presence-offline'}>{presenceLabel(chat.otherProfiles?.[0])}</small>}
+                </span>
+                <span className="chat-list-meta">{chat.lastActivityAt ? new Date(chat.lastActivityAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}{chat.is_group && <small>Group</small>}</span>
               </button>) : !chatLoading ? <p className="search-hint">No conversations yet. Search for a person above to start one.</p> : null}
             </aside>
             <section className="chat-thread">
               {activeChat ? <>
                 <div className="thread-heading"><div className="mini-avatar">{(activeChat.label || 'C')[0].toUpperCase()}</div><div><b>{activeChat.label}</b><small>{activeChat.is_group ? 'Group conversation' : presenceLabel(activeChat.otherProfiles?.[0])}</small></div></div>
-                <div className="message-list" aria-live="polite">
+                <div className="message-list" aria-live="polite" ref={messageListRef}>
                   {chatMessages.length ? chatMessages.map((message) => <div key={message.id} className={'message-row ' + (message.sender_id === session.user.id ? 'mine' : 'theirs')}>
                     <div className="message-bubble"><p>{message.body}</p><small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
                   </div>) : <p className="search-hint thread-empty">No messages yet. Say hello 👋</p>}
