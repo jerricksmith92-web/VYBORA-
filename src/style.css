@@ -287,3 +287,18 @@ nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
 .explore-post-author small{font-size:11px;color:#a99bb9}
 .explore-community .post-image{max-height:420px}
 .explore-community .muted{color:#a99bb9;font-size:12px;text-align:center;padding:12px}
+
+/* Public member profiles */
+.people-open-profile{display:flex;align-items:center;gap:10px;min-width:0;flex:1;text-align:left;background:transparent;border:0;color:inherit;padding:0;cursor:pointer}
+.people-open-profile .people-avatar{flex-shrink:0}
+.people-open-profile .people-copy{min-width:0;display:flex;flex-direction:column;gap:3px}
+.profile-back-link{display:block;margin:0 auto 16px 0;background:transparent;border:0;color:#a9a0ff;font-weight:700;padding:8px 0;cursor:pointer}
+.profile-avatar-large{width:92px;height:92px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;background:#292431;color:#fff;font-size:34px;font-weight:800;border:2px solid #7657ff}
+.profile-avatar-large img{width:100%;height:100%;object-fit:cover}
+.user-profile-view .follow-stats{max-width:440px;margin:20px auto}
+.user-profile-view>.follow-button,.user-profile-view>.following-button{display:block;max-width:440px;width:100%;margin:12px auto 24px}
+.profile-post-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;margin-top:24px;width:100%;text-align:left}
+.profile-post-tile{aspect-ratio:1;min-width:0;overflow:hidden;background:#19171d;display:flex;align-items:center;justify-content:center}
+.profile-post-tile img,.profile-post-tile video{width:100%;height:100%;object-fit:cover}
+.profile-post-tile p{padding:8px;font-size:12px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical}
+@media(max-width:560px){.user-profile-view{padding:18px 12px}.profile-post-grid{margin-left:-12px;width:calc(100% + 24px)}}
