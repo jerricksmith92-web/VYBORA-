@@ -38,6 +38,7 @@ function App() {
   const [messageDraft, setMessageDraft] = React.useState('');
   const [typingUserId, setTypingUserId] = React.useState('');
   const typingChannelRef = React.useRef(null);
+  const typingChannelReadyRef = React.useRef(false);
   const typingStopTimerRef = React.useRef(null);
   const [sendingMessage, setSendingMessage] = React.useState(false);
   const [profileSearch, setProfileSearch] = React.useState('');
@@ -416,9 +417,18 @@ function App() {
           setChatMessages((current) => current.filter((message) => message.id !== payload.old.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        typingChannelReadyRef.current = status === 'SUBSCRIBED';
+      });
     typingChannelRef.current = channel;
-    return () => { typingChannelRef.current = null; setTypingUserId(''); supabase.removeChannel(channel); };
+    return () => {
+      typingChannelRef.current = null;
+      typingChannelReadyRef.current = false;
+      if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = null;
+      setTypingUserId('');
+      supabase.removeChannel(channel);
+    };
   }, [activeChatId, session?.user?.id]);
 
   async function handleAuth(e) {
@@ -567,7 +577,7 @@ function App() {
   function handleMessageDraftChange(value) {
     setMessageDraft(value);
     const channel = typingChannelRef.current;
-    if (!channel || !session?.user?.id || !activeChatId) return;
+    if (!channel || !typingChannelReadyRef.current || !session?.user?.id || !activeChatId) return;
     channel.send({ type: 'broadcast', event: 'typing', payload: { userId: session.user.id, isTyping: Boolean(value.trim()) } });
     if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
     if (value.trim()) {
@@ -723,7 +733,7 @@ function App() {
                     <div className="message-bubble"><p>{message.body}</p><small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
                   </div>) : <p className="search-hint thread-empty">No messages yet. Say hello 👋</p>}
                 </div>
-                {typingUserId && activeChat?.otherProfiles?.some((profile) => profile.id === typingUserId) && <p className="typing-indicator" aria-live="polite">{activeChat.otherProfiles.find((profile) => profile.id === typingUserId)?.display_name || activeChat.otherProfiles.find((profile) => profile.id === typingUserId)?.username || 'Someone'} is typing<span>…</span></p>}
+                {typingUserId && <p className="typing-indicator" aria-live="polite">{activeChat?.otherProfiles?.find((profile) => profile.id === typingUserId)?.display_name || activeChat?.otherProfiles?.find((profile) => profile.id === typingUserId)?.username || 'Someone'} is typing<span>…</span></p>}
                 <form className="message-composer" onSubmit={sendMessage}>
                   <input value={messageDraft} onChange={(e) => handleMessageDraftChange(e.target.value)} maxLength={5000} placeholder="Write a message…" aria-label="Write a message" />
                   <button type="submit" disabled={sendingMessage || !messageDraft.trim()}>{sendingMessage ? 'Sending…' : <><Send size={16} strokeWidth={2.2} /> Send</>}</button>
