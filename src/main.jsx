@@ -672,7 +672,7 @@ function App() {
                 </div>
                 <form className="message-composer" onSubmit={sendMessage}>
                   <input value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} maxLength={5000} placeholder="Write a message…" aria-label="Write a message" />
-                  <button type="submit" disabled={sendingMessage || !messageDraft.trim()}>{sendingMessage ? 'Sending…' : <><Send size={16} fill="currentColor" /> Send</>}</button>
+                  <button type="submit" disabled={sendingMessage || !messageDraft.trim()}>{sendingMessage ? 'Sending…' : <><Send size={16} strokeWidth={2.2} /> Send</>}</button>
                 </form>
               </> : <div className="chat-empty"><div className="bigicon">✉</div><h3>Your conversations</h3><p>Choose a chat or search for a person above to begin.</p></div>}
             </section>
