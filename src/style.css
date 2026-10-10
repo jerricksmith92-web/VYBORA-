@@ -232,6 +232,7 @@ nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
 /* Online and last-seen presence in conversations */
 .chat-list-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
 .chat-list-copy .chat-list-label{width:100%}
+.chat-preview{display:block;max-width:100%;font-size:11px!important;color:#c9c0d3!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35}.chat-list-meta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;color:#a49bac;font-size:10px;padding-left:4px}.chat-list-item{min-width:0}.chat-list-copy{overflow:hidden}.chat-list-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-list-copy small{font-size:10px;color:#a49bac;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-list-copy small.presence-online,.thread-heading small.presence-online{color:#c5ff67}
 .chat-list-copy small.presence-offline{color:#94899f}
