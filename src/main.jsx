@@ -746,7 +746,7 @@ function App() {
             </div>}
           </div>
           <div className="chat-layout">
-            <aside className="chat-list">
+            <aside className={'chat-list ' + (activeChatId ? 'chat-list-in-thread' : 'chat-list-only')}>
               <div className="chat-list-heading">Your chats {chatLoading ? '· Loading…' : ''}</div>
               {chatList.length ? chatList.map((chat) => <button key={chat.id} className={'chat-list-item ' + (chat.id === activeChatId ? 'selected' : '')} onClick={() => { setActiveChatId(chat.id); setChatError(''); setChatNotice(''); }}>
                 <div className="mini-avatar">{(chat.label || 'C')[0].toUpperCase()}</div>
@@ -760,7 +760,7 @@ function App() {
             </aside>
             <section className="chat-thread">
               {activeChat ? <>
-                <div className="thread-heading"><div className="mini-avatar">{(activeChat.label || 'C')[0].toUpperCase()}</div><div><b>{activeChat.label}</b><small>{activeChat.is_group ? 'Group conversation' : presenceLabel(activeChat.otherProfiles?.[0])}</small></div></div>
+                <div className="thread-heading"><button className="chat-back-button" type="button" onClick={() => { setActiveChatId(''); setChatMessages([]); setChatError(''); setChatNotice(''); }} aria-label="Back to conversations">‹ Back</button><div className="mini-avatar">{(activeChat.label || 'C')[0].toUpperCase()}</div><div className="thread-person"><b>{activeChat.label}</b><small>{activeChat.is_group ? 'Group conversation' : presenceLabel(activeChat.otherProfiles?.[0])}</small></div></div>
                 <div className="message-list" aria-live="polite" ref={messageListRef}>
                   {chatMessages.length ? chatMessages.map((message) => <div key={message.id} className={'message-row ' + (message.sender_id === session.user.id ? 'mine' : 'theirs')}>
                     <div className="message-bubble"><p>{message.body}</p><small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
