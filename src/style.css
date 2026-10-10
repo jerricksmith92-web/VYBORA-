@@ -315,3 +315,10 @@ nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
 .explore-post-author-button b{font-size:13px;color:#f8f5fb}
 .explore-post-author-button small{font-size:11px;color:#a99bb9}
 .people-open-profile .people-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+
+/* Improve username readability in the Discover people rows on mobile */
+.people-open-profile .people-copy{min-width:0;flex:1;gap:5px}
+.people-open-profile .people-copy b{color:#171a12;font-size:14px;font-weight:800;line-height:1.3;overflow-wrap:anywhere}
+.people-open-profile .people-copy small{color:#343b25;font-size:12px;font-weight:700;line-height:1.35;overflow-wrap:anywhere;word-break:break-word}
+@media(max-width:560px){.people-row{align-items:center;gap:8px}.people-open-profile{gap:9px}.people-open-profile .people-copy b{font-size:13px}.people-open-profile .people-copy small{font-size:11px}}
