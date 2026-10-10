@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { House, Compass, PlusSquare, MessageCircle, Bell, UserRound, Heart, MessageSquare, Share2, Bookmark, Send, Search, RefreshCw } from 'lucide-react';
 import { supabase, supabaseConfigured } from './supabase.js';
 import './style.css';
 
@@ -586,7 +587,7 @@ function App() {
     </header>
     <nav>{['Home', 'Explore', 'Messages', 'Notifications', 'Profile'].map((t) =>
       <button className={tab === t ? 'active' : ''} onClick={() => setTab(t)} key={t}>
-        {({ Home: '⌂', Explore: '⌕', Messages: '▤', Notifications: '♡', Profile: '◉' })[t]} <span>{t}</span>{t === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="nav-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}
+        {({ Home: <House size={18} fill="currentColor" strokeWidth={1.8} />, Explore: <Compass size={18} fill="currentColor" strokeWidth={1.8} />, Messages: <MessageCircle size={18} fill="currentColor" strokeWidth={1.8} />, Notifications: <Bell size={18} fill="currentColor" strokeWidth={1.8} />, Profile: <UserRound size={18} fill="currentColor" strokeWidth={1.8} /> })[t]} <span>{t}</span>{t === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="nav-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}
       </button>
     )}</nav>
     <main>
@@ -617,17 +618,17 @@ function App() {
         </section>
         {postError && <p className="post-alert" role="alert">{postError}</p>}
         <section className="feed">
-          <div className="sectionhead"><h2>Your feed</h2><button className="refresh-button" onClick={loadPosts}>Refresh ↻</button></div>
+          <div className="sectionhead"><h2>Your feed</h2><button className="refresh-button" onClick={loadPosts}><RefreshCw size={14} /> Refresh</button></div>
           {engagementError && <p className="post-alert" role="alert">{engagementError}</p>}
           {posts.length ? posts.map((p) => <article className={'post ' + (highlightedPostId === p.id ? 'post-highlight' : '')} id={'post-' + p.id} key={p.id}>
             <div className="posthead"><div className="avatar">{p.user?.[0]?.toUpperCase() || 'V'}</div><div><b>{p.user}</b><small>{p.handle} · {p.time}</small></div><button className="dots" aria-label="More post options">•••</button></div>
             {p.text && <p className="posttext">{p.text}</p>}
             {p.image_url && (p.image_url.match(/\.(mp4|mov|webm|m4v)(\?|$)/i) ? <video className="post-image post-video" src={p.image_url} controls playsInline preload="metadata" /> : <img className="post-image" src={p.image_url} alt={'Photo shared by ' + p.user} loading="lazy" />)}
             <div className="postactions">
-              <button onClick={() => toggleLike(p)} className={liked[p.id] ? 'liked' : ''}>{liked[p.id] ? '♥' : '♡'} {p.likes}</button>
-              <button onClick={() => toggleComments(p)}>▢ Comment {p.comments || 0}</button>
-              <button onClick={() => { if (p.image_url) { navigator.clipboard?.writeText(p.image_url); setChatNotice('Post media link copied when clipboard access is available.'); } else setChatNotice('Share links are coming in a future VYBORA update.'); }}>↗ Share</button>
-              <button onClick={(e) => e.currentTarget.classList.toggle('saved')}>♧ Save</button>
+              <button onClick={() => toggleLike(p)} className={liked[p.id] ? 'liked' : ''}>{liked[p.id] ? <Heart size={17} fill="currentColor" /> : <Heart size={17} />} {p.likes}</button>
+              <button onClick={() => toggleComments(p)}><MessageSquare size={16} fill="currentColor" /> Comment {p.comments || 0}</button>
+              <button onClick={() => { if (p.image_url) { navigator.clipboard?.writeText(p.image_url); setChatNotice('Post media link copied when clipboard access is available.'); } else setChatNotice('Share links are coming in a future VYBORA update.'); }}><Share2 size={16} fill="currentColor" /> Share</button>
+              <button onClick={(e) => e.currentTarget.classList.toggle('saved')}><Bookmark size={16} fill="currentColor" /> Save</button>
             </div>
             {commentOpen[p.id] && <section className="comments-panel" aria-label="Post comments">
               <div className="comments-list">{(commentsByPost[p.id] || []).length ? commentsByPost[p.id].map((comment) => <div className="comment-item" key={comment.id}><span className="comment-avatar">{comment.user?.[0]?.toUpperCase() || 'V'}</span><div><b>{comment.user}</b><p>{comment.content}</p><small>{comment.created_at ? new Date(comment.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'just now'}</small></div></div>) : <p className="comments-empty">No comments yet. Start the conversation ✦</p>}</div>
@@ -671,7 +672,7 @@ function App() {
                 </div>
                 <form className="message-composer" onSubmit={sendMessage}>
                   <input value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} maxLength={5000} placeholder="Write a message…" aria-label="Write a message" />
-                  <button type="submit" disabled={sendingMessage || !messageDraft.trim()}>{sendingMessage ? 'Sending…' : 'Send ↗'}</button>
+                  <button type="submit" disabled={sendingMessage || !messageDraft.trim()}>{sendingMessage ? 'Sending…' : <><Send size={16} fill="currentColor" /> Send</>}</button>
                 </form>
               </> : <div className="chat-empty"><div className="bigicon">✉</div><h3>Your conversations</h3><p>Choose a chat or search for a person above to begin.</p></div>}
             </section>
@@ -706,10 +707,10 @@ function App() {
         </>}
         {authMessage && <p className="auth-message" role="status">{authMessage}</p>}
         {!supabaseConfigured && <p className="auth-message">Connection settings were not included in this build. Check repository variables and the latest deployment.</p>}
-      </section> : <section className="placeholder discovery-panel"><div className="bigicon">{tab === 'Explore' ? '⌕' : '♡'}</div><p className="eyebrow">{tab === 'Explore' ? 'FIND YOUR NEXT FAVOURITE' : 'THE LITTLE THINGS THAT CONNECT US'}</p><h2>{tab === 'Explore' ? 'Explore your world.' : 'Your activity.'}</h2><p>{tab === 'Explore' ? 'Discover moments, people and new perspectives. Search the community below.' : 'You’re all caught up. Updates will appear here as your community grows.'}</p>{tab === 'Explore' && <input className="explore-input" value={exploreSearch} onChange={(e) => setExploreSearch(e.target.value)} placeholder="Search posts or people…" />}{tab === 'Explore' && <div className="explore-results">{posts.filter(p => !exploreSearch.trim() || (p.text + ' ' + p.user).toLowerCase().includes(exploreSearch.toLowerCase())).map(p => <article className="post" key={p.id}><b>{p.user}</b><p className="posttext">{p.text}</p></article>)}</div>}<button onClick={() => setTab('Home')}>Back to home</button></section>}
+      </section> : <section className="placeholder discovery-panel"><div className="bigicon">{tab === 'Explore' ? <Search size={34} fill="currentColor" /> : <Bell size={34} fill="currentColor" />}</div><p className="eyebrow">{tab === 'Explore' ? 'FIND YOUR NEXT FAVOURITE' : 'THE LITTLE THINGS THAT CONNECT US'}</p><h2>{tab === 'Explore' ? 'Explore your world.' : 'Your activity.'}</h2><p>{tab === 'Explore' ? 'Discover moments, people and new perspectives. Search the community below.' : 'You’re all caught up. Updates will appear here as your community grows.'}</p>{tab === 'Explore' && <input className="explore-input" value={exploreSearch} onChange={(e) => setExploreSearch(e.target.value)} placeholder="Search posts or people…" />}{tab === 'Explore' && <div className="explore-results">{posts.filter(p => !exploreSearch.trim() || (p.text + ' ' + p.user).toLowerCase().includes(exploreSearch.toLowerCase())).map(p => <article className="post" key={p.id}><b>{p.user}</b><p className="posttext">{p.text}</p></article>)}</div>}<button onClick={() => setTab('Home')}>Back to home</button></section>}
       <footer>VYBORA © 2026 <span>Made for your world ✦</span></footer>
     </main>
-    <nav className="mobile-nav">{[['Home','⌂'],['Explore','⌕'],['Create','＋'],['Notifications','♡'],['Messages','↗'],['Profile','◉']].map(([name,icon]) => <button key={name} className={tab === name ? 'active' : ''} onClick={() => name === 'Create' ? (setTab('Home'), document.querySelector('.composebody textarea')?.focus()) : setTab(name)}><span>{icon}{name === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="mobile-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}</span><small>{name === 'Create' ? 'Post' : name}</small></button>)}</nav>
+    <nav className="mobile-nav">{[['Home',<House size={21} fill="currentColor" />],['Explore',<Compass size={21} fill="currentColor" />],['Create',<PlusSquare size={22} fill="currentColor" />],['Notifications',<Bell size={21} fill="currentColor" />],['Messages',<MessageCircle size={21} fill="currentColor" />],['Profile',<UserRound size={21} fill="currentColor" />]].map(([name,icon]) => <button key={name} className={tab === name ? 'active' : ''} onClick={() => name === 'Create' ? (setTab('Home'), document.querySelector('.composebody textarea')?.focus()) : setTab(name)}><span>{icon}{name === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="mobile-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}</span><small>{name === 'Create' ? 'Post' : name}</small></button>)}</nav>
     {activeStory && <div className="story-overlay" role="dialog" aria-modal="true" aria-label="Story viewer" onClick={() => setActiveStory(null)}><div className="story-viewer" onClick={(e) => e.stopPropagation()}><div className="story-viewer-top"><span className="story-progress"><i /></span><button onClick={() => setActiveStory(null)} aria-label="Close story">×</button></div><div className="story-viewer-content"><span className="story-viewer-avatar">{activeStory.initial}</span><p>{activeStory.own ? 'Your moment starts here.' : activeStory.name + '’s story'}</p><small>{activeStory.own ? 'Share the little things as they happen.' : 'A moment shared with the VYBORA community ✦'}</small>{activeStory.own && <button onClick={() => { setActiveStory(null); setTab('Home'); document.querySelector('.composebody textarea')?.focus(); }}>Create a post ↗</button>}</div></div></div>}
   </div>;
 }
