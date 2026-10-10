@@ -63,6 +63,17 @@ function App() {
   }, [tab, session?.user?.id]);
 
   React.useEffect(() => {
+    if (!supabase || !session?.user?.id) return undefined;
+    const channel = supabase.channel('vybora-notifications-' + session.user.id)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'notifications',
+        filter: 'recipient_id=eq.' + session.user.id
+      }, () => { loadNotifications(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.user?.id]);
+
+  React.useEffect(() => {
     if (tab !== 'Home' || !highlightedPostId) return;
     const target = document.getElementById('post-' + highlightedPostId);
     if (target) {
