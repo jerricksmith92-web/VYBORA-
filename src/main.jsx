@@ -94,6 +94,24 @@ function App() {
   }, [tab, session?.user?.id]);
 
   React.useEffect(() => {
+    if (!supabase || !session?.user?.id) return undefined;
+    let active = true;
+    const heartbeat = async () => {
+      const { error } = await supabase.rpc('vybora_update_last_seen');
+      if (error && active) console.warn('VYBORA presence heartbeat failed:', error.message);
+    };
+    heartbeat();
+    const timer = setInterval(heartbeat, 30000);
+    return () => { active = false; clearInterval(timer); };
+  }, [session?.user?.id]);
+
+  React.useEffect(() => {
+    if (tab !== 'Messages' || !session?.user?.id || !supabase) return undefined;
+    const timer = setInterval(() => { loadChats(); loadProfiles(); }, 30000);
+    return () => clearInterval(timer);
+  }, [tab, session?.user?.id]);
+
+  React.useEffect(() => {
     if (session?.user?.id && supabase) loadPosts();
     else setPosts([]);
   }, [session?.user?.id]);
@@ -468,7 +486,7 @@ function App() {
       if (memberIds.length) {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id,username,display_name,avatar_url')
+          .select('id,username,display_name,avatar_url,last_seen_at')
           .in('id', memberIds);
         if (error) throw error;
         profileRows = data || [];
@@ -496,11 +514,25 @@ function App() {
     }
   }
 
+  function presenceLabel(profile) {
+    if (!profile?.last_seen_at) return 'Offline · last seen unavailable';
+    const age = Date.now() - new Date(profile.last_seen_at).getTime();
+    if (Number.isFinite(age) && age >= 0 && age < 90000) return 'Online';
+    if (!Number.isFinite(age) || age < 0) return 'Offline';
+    const minutes = Math.floor(age / 60000);
+    if (minutes < 1) return 'Last seen just now';
+    if (minutes < 60) return 'Last seen ' + minutes + 'm ago';
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return 'Last seen ' + hours + 'h ago';
+    const days = Math.floor(hours / 24);
+    return 'Last seen ' + days + 'd ago';
+  }
+
   async function loadProfiles() {
     if (!supabase || !session?.user?.id) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('id,username,display_name,avatar_url')
+      .select('id,username,display_name,avatar_url,last_seen_at')
       .neq('id', session.user.id)
       .limit(100);
     if (error) {
@@ -659,12 +691,12 @@ function App() {
             <aside className="chat-list">
               <div className="chat-list-heading">Your chats {chatLoading ? '· Loading…' : ''}</div>
               {chatList.length ? chatList.map((chat) => <button key={chat.id} className={'chat-list-item ' + (chat.id === activeChatId ? 'selected' : '')} onClick={() => { setActiveChatId(chat.id); setChatError(''); setChatNotice(''); }}>
-                <div className="mini-avatar">{(chat.label || 'C')[0].toUpperCase()}</div><span className="chat-list-label">{chat.label}</span>{chat.is_group && <small>Group</small>}
+                <div className="mini-avatar">{(chat.label || 'C')[0].toUpperCase()}</div><span className="chat-list-copy"><span className="chat-list-label">{chat.label}</span>{!chat.is_group && <small className={(chat.otherProfiles?.[0]?.last_seen_at && Date.now() - new Date(chat.otherProfiles[0].last_seen_at).getTime() < 90000) ? 'presence-online' : 'presence-offline'}>{presenceLabel(chat.otherProfiles?.[0])}</small>}</span>{chat.is_group && <small>Group</small>}
               </button>) : !chatLoading ? <p className="search-hint">No conversations yet. Search for a person above to start one.</p> : null}
             </aside>
             <section className="chat-thread">
               {activeChat ? <>
-                <div className="thread-heading"><div className="mini-avatar">{(activeChat.label || 'C')[0].toUpperCase()}</div><div><b>{activeChat.label}</b><small>{activeChat.is_group ? 'Group conversation' : 'Private conversation'}</small></div></div>
+                <div className="thread-heading"><div className="mini-avatar">{(activeChat.label || 'C')[0].toUpperCase()}</div><div><b>{activeChat.label}</b><small>{activeChat.is_group ? 'Group conversation' : presenceLabel(activeChat.otherProfiles?.[0])}</small></div></div>
                 <div className="message-list" aria-live="polite">
                   {chatMessages.length ? chatMessages.map((message) => <div key={message.id} className={'message-row ' + (message.sender_id === session.user.id ? 'mine' : 'theirs')}>
                     <div className="message-bubble"><p>{message.body}</p><small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
