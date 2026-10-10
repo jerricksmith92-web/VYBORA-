@@ -64,17 +64,6 @@ function App() {
   const [followError, setFollowError] = React.useState('');
   const [viewedProfile, setViewedProfile] = React.useState(null);
   const [viewedProfileStats, setViewedProfileStats] = React.useState({ posts: 0, followers: 0, following: 0 });
-  const [profileEditOpen, setProfileEditOpen] = React.useState(false);
-  const [profileNameDraft, setProfileNameDraft] = React.useState('');
-  const [profileAvatarFile, setProfileAvatarFile] = React.useState(null);
-  const [profileAvatarPreview, setProfileAvatarPreview] = React.useState('');
-  const [profileSaveBusy, setProfileSaveBusy] = React.useState(false);
-  const [profileSaveMessage, setProfileSaveMessage] = React.useState('');
-
-  React.useEffect(() => {
-    if (!profileAvatarPreview) return undefined;
-    return () => URL.revokeObjectURL(profileAvatarPreview);
-  }, [profileAvatarPreview]);
 
   React.useEffect(() => {
     if (!supabase) return undefined;
@@ -639,74 +628,6 @@ function App() {
     setFollowingIds((followingRows || []).map((row) => row.following_id));
   }
 
-  function startProfileEdit() {
-    setProfileNameDraft(myProfile?.display_name || '');
-    setProfileAvatarFile(null);
-    setProfileAvatarPreview('');
-    setProfileSaveMessage('');
-    setProfileEditOpen(true);
-  }
-
-  function chooseProfileAvatar(event) {
-    const file = event.target.files?.[0] || null;
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setProfileSaveMessage('Choose an image file for your profile photo.');
-      event.target.value = '';
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setProfileSaveMessage('Please choose a photo smaller than 5 MB.');
-      event.target.value = '';
-      return;
-    }
-    setProfileSaveMessage('');
-    setProfileAvatarFile(file);
-    setProfileAvatarPreview(URL.createObjectURL(file));
-  }
-
-  async function saveProfile(event) {
-    event.preventDefault();
-    if (!supabase || !session?.user?.id || profileSaveBusy) return;
-    const displayName = profileNameDraft.trim().slice(0, 40);
-    setProfileSaveBusy(true);
-    setProfileSaveMessage('');
-    try {
-      let avatarUrl = myProfile?.avatar_url || null;
-      if (profileAvatarFile) {
-        const extensionFromName = (profileAvatarFile.name.split('.').pop() || '').toLowerCase();
-        const extension = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(extensionFromName)
-          ? extensionFromName
-          : (profileAvatarFile.type === 'image/png' ? 'png' : profileAvatarFile.type === 'image/webp' ? 'webp' : 'jpg');
-        const path = session.user.id + '/avatar-' + crypto.randomUUID() + '.' + extension;
-        const { error: uploadError } = await supabase.storage.from('post-media').upload(path, profileAvatarFile, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: profileAvatarFile.type
-        });
-        if (uploadError) throw uploadError;
-        avatarUrl = supabase.storage.from('post-media').getPublicUrl(path).data.publicUrl;
-      }
-      const { data, error } = await supabase.from('profiles')
-        .update({ display_name: displayName || null, avatar_url: avatarUrl })
-        .eq('id', session.user.id)
-        .select('id,username,display_name,avatar_url')
-        .single();
-      if (error) throw error;
-      setMyProfile(data);
-      setProfiles((current) => current.map((profile) => profile.id === data.id ? { ...profile, ...data } : profile));
-      setProfileEditOpen(false);
-      setProfileAvatarFile(null);
-      setProfileAvatarPreview('');
-      setProfileSaveMessage('Profile updated successfully.');
-      await loadPosts();
-    } catch (err) {
-      setProfileSaveMessage(err.message || 'Could not save your profile. Please try again.');
-    } finally {
-      setProfileSaveBusy(false);
-    }
-  }
-
   async function toggleFollow(profile) {
     if (!supabase || !session?.user?.id || !profile?.id || followBusyId) return;
     const alreadyFollowing = followingIds.includes(profile.id);
@@ -934,8 +855,8 @@ function App() {
           </div> : !notificationError ? <div className="chat-empty"><div className="bigicon">♡</div><h3>You’re all caught up</h3><p>When someone likes or comments on your posts, you’ll see it here. Tap any notification to jump straight to that post.</p></div> : null}
         </>}
       </section> : tab === 'Profile' ? viewedProfile ? <section className="placeholder auth-panel user-profile-view"><button type="button" className="profile-back-link" onClick={() => setViewedProfile(null)}>‹ My profile</button><div className="profile-avatar-large">{viewedProfile.avatar_url ? <img src={viewedProfile.avatar_url} alt="" /> : (viewedProfile.display_name || cleanUsername(viewedProfile.username) || 'V')[0].toUpperCase()}</div><h2>{viewedProfile.display_name || cleanUsername(viewedProfile.username) || 'VYBORA member'}</h2><p className="profile-handle">{viewedProfile.username ? '@' + cleanUsername(viewedProfile.username) : 'VYBORA member'}</p><div className="follow-stats"><div><b>{viewedProfileStats.posts}</b><small>Posts</small></div><div><b>{viewedProfileStats.followers}</b><small>Followers</small></div><div><b>{viewedProfileStats.following}</b><small>Following</small></div></div><button type="button" disabled={followBusyId === viewedProfile.id} className={followingIds.includes(viewedProfile.id) ? 'following-button' : 'follow-button'} onClick={() => toggleFollow(viewedProfile)}>{followBusyId === viewedProfile.id ? '…' : followingIds.includes(viewedProfile.id) ? 'Following' : 'Follow'}</button><div className="profile-post-grid">{posts.filter((post) => post.user_id === viewedProfile.id).map((post) => <article className="profile-post-tile" key={post.id}>{post.image_url ? (post.image_url.match(/\\.(mp4|webm|mov)(\\?|$)/i) ? <video src={post.image_url} controls playsInline /> : <img src={post.image_url} alt="Post" loading="lazy" />) : <p>{post.text}</p>}</article>)}</div>{!posts.some((post) => post.user_id === viewedProfile.id) && <p className="muted">No posts yet.</p>}{followError && <p className="post-alert" role="alert">{followError}</p>}</section> : <section className="placeholder auth-panel">
-        {session ? <><div className="profile-avatar-large own-profile-avatar">{(profileAvatarPreview || myProfile?.avatar_url) ? <img src={profileAvatarPreview || myProfile.avatar_url} alt="Your profile photo" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || 'V')[0].toUpperCase()}</div><h2>{myProfile?.display_name || cleanUsername(myProfile?.username) || 'Your profile'}</h2></> : <><div className="bigicon">◉</div><h2>Join VYBORA</h2></>}
-        {session ? <><p className="profile-handle">{myProfile?.username ? '@' + cleanUsername(myProfile.username) : session.user.email}</p><button type="button" className="edit-profile-button" onClick={() => profileEditOpen ? setProfileEditOpen(false) : startProfileEdit()}>{profileEditOpen ? 'Cancel editing' : 'Edit profile'}</button>{profileEditOpen && <form className="profile-edit-form" onSubmit={saveProfile}><label htmlFor="profile-display-name">Display name</label><input id="profile-display-name" value={profileNameDraft} onChange={(e) => setProfileNameDraft(e.target.value)} maxLength={40} placeholder="Your name" /><label htmlFor="profile-avatar-file">Profile photo</label><input id="profile-avatar-file" type="file" accept="image/*" onChange={chooseProfileAvatar} /><small>Choose an image up to 5 MB.</small><button type="submit" disabled={profileSaveBusy}>{profileSaveBusy ? 'Saving…' : 'Save profile'}</button>{profileSaveMessage && <p className="profile-save-message" role="status">{profileSaveMessage}</p>}</form>}{!profileEditOpen && profileSaveMessage && <p className="profile-save-message" role="status">{profileSaveMessage}</p>}<div className="follow-stats"><div><b>{posts.filter((post) => post.handle === (myProfile?.username ? '@' + cleanUsername(myProfile.username) : '')).length}</b><small>Posts</small></div><div><b>{followStats.followers}</b><small>Followers</small></div><div><b>{followStats.following}</b><small>Following</small></div></div><p>Build your VYBORA community. Follow people whose moments you want to see.</p><div className="people-heading"><h3>Discover people</h3><span>{profiles.length} members</span></div><input className="explore-input" value={profileSearch} onChange={(e) => setProfileSearch(e.target.value)} placeholder="Search people by name or username…" />{followError && <p className="post-alert" role="alert">{followError}</p>}<div className="people-list">{profiles.filter((profile) => !profileSearch.trim() || [cleanUsername(profile.username), profile.display_name].some((value) => (value || '').toLowerCase().includes(profileSearch.trim().toLowerCase()))).map((profile) => <div className="people-row" key={profile.id}><button type="button" className="people-open-profile" onClick={() => openUserProfile(profile)}><div className="people-avatar">{(profile.display_name || cleanUsername(profile.username) || 'V')[0].toUpperCase()}</div><span className="people-copy"><b>{profile.display_name || cleanUsername(profile.username) || 'VYBORA member'}</b><small>{profile.username ? '@' + cleanUsername(profile.username) : 'VYBORA member'}</small></span></button><button type="button" disabled={followBusyId === profile.id} className={followingIds.includes(profile.id) ? 'following-button' : 'follow-button'} onClick={() => toggleFollow(profile)}>{followBusyId === profile.id ? '…' : followingIds.includes(profile.id) ? 'Following' : 'Follow'}</button></div>)}{!profiles.length && <p className="muted">More people will appear here as they join VYBORA.</p>}</div><button onClick={handleSignOut}>Sign out</button></> : <>
+        <div className="bigicon">◉</div><h2>{session ? (myProfile?.display_name || cleanUsername(myProfile?.username) || 'Your profile') : 'Join VYBORA'}</h2>
+        {session ? <><p className="profile-handle">{myProfile?.username ? '@' + cleanUsername(myProfile.username) : session.user.email}</p><div className="follow-stats"><div><b>{posts.filter((post) => post.handle === (myProfile?.username ? '@' + cleanUsername(myProfile.username) : '')).length}</b><small>Posts</small></div><div><b>{followStats.followers}</b><small>Followers</small></div><div><b>{followStats.following}</b><small>Following</small></div></div><p>Build your VYBORA community. Follow people whose moments you want to see.</p><div className="people-heading"><h3>Discover people</h3><span>{profiles.length} members</span></div><input className="explore-input" value={profileSearch} onChange={(e) => setProfileSearch(e.target.value)} placeholder="Search people by name or username…" />{followError && <p className="post-alert" role="alert">{followError}</p>}<div className="people-list">{profiles.filter((profile) => !profileSearch.trim() || [cleanUsername(profile.username), profile.display_name].some((value) => (value || '').toLowerCase().includes(profileSearch.trim().toLowerCase()))).map((profile) => <div className="people-row" key={profile.id}><button type="button" className="people-open-profile" onClick={() => openUserProfile(profile)}><div className="people-avatar">{(profile.display_name || cleanUsername(profile.username) || 'V')[0].toUpperCase()}</div><span className="people-copy"><b>{profile.display_name || cleanUsername(profile.username) || 'VYBORA member'}</b><small>{profile.username ? '@' + cleanUsername(profile.username) : 'VYBORA member'}</small></span></button><button type="button" disabled={followBusyId === profile.id} className={followingIds.includes(profile.id) ? 'following-button' : 'follow-button'} onClick={() => toggleFollow(profile)}>{followBusyId === profile.id ? '…' : followingIds.includes(profile.id) ? 'Following' : 'Follow'}</button></div>)}{!profiles.length && <p className="muted">More people will appear here as they join VYBORA.</p>}</div><button onClick={handleSignOut}>Sign out</button></> : <>
           <p>Create an account or sign in to message your people.</p>
           <div className="auth-tabs">
             <button className={authMode === 'signin' ? 'selected' : ''} onClick={() => { setAuthMode('signin'); setAuthMessage(''); }}>Sign in</button>
