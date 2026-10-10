@@ -8,6 +8,11 @@ const APP_URL = 'https://jerricksmith92-web.github.io/VYBORA-/';
 function App() {
   const [tab, setTab] = React.useState('Home');
   const [liked, setLiked] = React.useState({});
+  const [commentOpen, setCommentOpen] = React.useState({});
+  const [commentsByPost, setCommentsByPost] = React.useState({});
+  const [commentDrafts, setCommentDrafts] = React.useState({});
+  const [commentBusy, setCommentBusy] = React.useState({});
+  const [engagementError, setEngagementError] = React.useState('');
   const [draft, setDraft] = React.useState('');
   const [posts, setPosts] = React.useState([]);
   const [postBusy, setPostBusy] = React.useState(false);
@@ -79,7 +84,9 @@ function App() {
       setPostError('Posts are not connected yet. Run the VYBORA social setup SQL in your Supabase SQL Editor. ' + error.message);
       return;
     }
-    const userIds = [...new Set((data || []).map((post) => post.user_id).filter(Boolean))];
+    const postRows = data || [];
+    const postIds = postRows.map((post) => post.id);
+    const userIds = [...new Set(postRows.map((post) => post.user_id).filter(Boolean))];
     let profileRows = [];
     if (userIds.length) {
       const { data: profileData } = await supabase
@@ -89,7 +96,29 @@ function App() {
       profileRows = profileData || [];
     }
     const profileMap = Object.fromEntries(profileRows.map((profile) => [profile.id, profile]));
-    setPosts((data || []).map((post) => {
+    let likeRows = [];
+    let commentRows = [];
+    setEngagementError('');
+    if (postIds.length) {
+      const [{ data: likesData, error: likesError }, { data: commentsData, error: commentsError }] = await Promise.all([
+        supabase.from('post_likes').select('post_id,user_id').in('post_id', postIds),
+        supabase.from('post_comments').select('id,post_id,user_id,content,created_at').in('post_id', postIds).order('created_at', { ascending: true })
+      ]);
+      if (likesError || commentsError) {
+        setEngagementError('Likes and comments need one-time database setup. Run supabase/social_engagement_setup.sql in Supabase SQL Editor.');
+      } else {
+        likeRows = likesData || [];
+        commentRows = commentsData || [];
+      }
+    }
+    const nextLiked = {};
+    likeRows.forEach((like) => { if (like.user_id === session?.user?.id) nextLiked[like.post_id] = true; });
+    setLiked(nextLiked);
+    const likeCounts = {};
+    likeRows.forEach((like) => { likeCounts[like.post_id] = (likeCounts[like.post_id] || 0) + 1; });
+    const commentCounts = {};
+    commentRows.forEach((comment) => { commentCounts[comment.post_id] = (commentCounts[comment.post_id] || 0) + 1; });
+    setPosts(postRows.map((post) => {
       const profile = profileMap[post.user_id] || {};
       return {
         id: post.id,
@@ -98,9 +127,98 @@ function App() {
         time: post.created_at ? new Date(post.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'just now',
         text: post.content || '',
         image_url: post.image_url || '',
-        likes: 0
+        likes: likeCounts[post.id] || 0,
+        comments: commentCounts[post.id] || 0
       };
     }));
+    if (commentRows.length) {
+      const commenterIds = [...new Set(commentRows.map((comment) => comment.user_id).filter(Boolean))];
+      let commenterRows = [];
+      if (commenterIds.length) {
+        const { data: commenters } = await supabase.from('profiles').select('id,username,display_name').in('id', commenterIds);
+        commenterRows = commenters || [];
+      }
+      const commenterMap = Object.fromEntries(commenterRows.map((profile) => [profile.id, profile]));
+      const grouped = {};
+      commentRows.forEach((comment) => {
+        const profile = commenterMap[comment.user_id] || {};
+        if (!grouped[comment.post_id]) grouped[comment.post_id] = [];
+        grouped[comment.post_id].push({ ...comment, user: profile.display_name || profile.username || 'VYBORA member' });
+      });
+      setCommentsByPost(grouped);
+    } else setCommentsByPost({});
+  }
+
+  async function toggleLike(post) {
+    if (!session?.user?.id || !supabase) {
+      setPostError('Sign in to like posts.');
+      setTab('Profile');
+      return;
+    }
+    const wasLiked = !!liked[post.id];
+    setLiked((current) => ({ ...current, [post.id]: !wasLiked }));
+    setPosts((current) => current.map((item) => item.id === post.id ? { ...item, likes: Math.max(0, item.likes + (wasLiked ? -1 : 1)) } : item));
+    setEngagementError('');
+    const result = wasLiked
+      ? await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', session.user.id)
+      : await supabase.from('post_likes').insert({ post_id: post.id, user_id: session.user.id });
+    if (result.error) {
+      setLiked((current) => ({ ...current, [post.id]: wasLiked }));
+      setPosts((current) => current.map((item) => item.id === post.id ? { ...item, likes: Math.max(0, item.likes + (wasLiked ? 1 : -1)) } : item));
+      setEngagementError(result.error.message.includes('post_likes') ? 'Run the VYBORA social engagement SQL in Supabase to enable likes and comments.' : result.error.message);
+    }
+  }
+
+  async function toggleComments(post) {
+    const opening = !commentOpen[post.id];
+    setCommentOpen((current) => ({ ...current, [post.id]: opening }));
+    if (!opening || commentsByPost[post.id]) return;
+    if (!supabase) return;
+    const { data, error } = await supabase.from('post_comments')
+      .select('id,post_id,user_id,content,created_at')
+      .eq('post_id', post.id)
+      .order('created_at', { ascending: true });
+    if (error) {
+      setEngagementError('Run the VYBORA social engagement SQL in Supabase to enable comments.');
+      return;
+    }
+    const userIds = [...new Set((data || []).map((comment) => comment.user_id).filter(Boolean))];
+    let rows = [];
+    if (userIds.length) {
+      const { data: profilesData } = await supabase.from('profiles').select('id,username,display_name').in('id', userIds);
+      rows = profilesData || [];
+    }
+    const map = Object.fromEntries(rows.map((profile) => [profile.id, profile]));
+    setCommentsByPost((current) => ({ ...current, [post.id]: (data || []).map((comment) => ({
+      ...comment, user: map[comment.user_id]?.display_name || map[comment.user_id]?.username || 'VYBORA member'
+    })) }));
+  }
+
+  async function submitComment(event, post) {
+    event.preventDefault();
+    const content = (commentDrafts[post.id] || '').trim();
+    if (!content || !session?.user?.id || !supabase || commentBusy[post.id]) {
+      if (!session?.user?.id) { setPostError('Sign in to comment.'); setTab('Profile'); }
+      return;
+    }
+    setCommentBusy((current) => ({ ...current, [post.id]: true }));
+    setEngagementError('');
+    try {
+      const { data, error } = await supabase.from('post_comments')
+        .insert({ post_id: post.id, user_id: session.user.id, content })
+        .select('id,post_id,user_id,content,created_at')
+        .single();
+      if (error) throw error;
+      const profile = await supabase.from('profiles').select('username,display_name').eq('id', session.user.id).maybeSingle();
+      const user = profile.data?.display_name || profile.data?.username || 'VYBORA member';
+      setCommentsByPost((current) => ({ ...current, [post.id]: [...(current[post.id] || []), { ...data, user }] }));
+      setPosts((current) => current.map((item) => item.id === post.id ? { ...item, comments: item.comments + 1 } : item));
+      setCommentDrafts((current) => ({ ...current, [post.id]: '' }));
+    } catch (err) {
+      setEngagementError(err.message || 'Could not add your comment.');
+    } finally {
+      setCommentBusy((current) => ({ ...current, [post.id]: false }));
+    }
   }
 
   function choosePostImage(event) {
@@ -427,16 +545,24 @@ function App() {
         {postError && <p className="post-alert" role="alert">{postError}</p>}
         <section className="feed">
           <div className="sectionhead"><h2>Your feed</h2><button className="refresh-button" onClick={loadPosts}>Refresh ↻</button></div>
+          {engagementError && <p className="post-alert" role="alert">{engagementError}</p>}
           {posts.length ? posts.map((p) => <article className="post" key={p.id}>
             <div className="posthead"><div className="avatar">{p.user?.[0]?.toUpperCase() || 'V'}</div><div><b>{p.user}</b><small>{p.handle} · {p.time}</small></div><button className="dots" aria-label="More post options">•••</button></div>
             {p.text && <p className="posttext">{p.text}</p>}
             {p.image_url && (p.image_url.match(/\.(mp4|mov|webm|m4v)(\?|$)/i) ? <video className="post-image post-video" src={p.image_url} controls playsInline preload="metadata" /> : <img className="post-image" src={p.image_url} alt={'Photo shared by ' + p.user} loading="lazy" />)}
             <div className="postactions">
-              <button onClick={() => setLiked({ ...liked, [p.id]: !liked[p.id] })} className={liked[p.id] ? 'liked' : ''}>{liked[p.id] ? '♥' : '♡'} {p.likes + (liked[p.id] ? 1 : 0)}</button>
-              <button onClick={() => setChatNotice('Comments are the next community feature we are building.')}>▢ Comment</button>
-              <button onClick={() => { if (p.image_url) { navigator.clipboard?.writeText(p.image_url); setChatNotice('Photo link copied when clipboard access is available.'); } else setChatNotice('Share links are coming in a future VYBORA update.'); }}>↗ Share</button>
+              <button onClick={() => toggleLike(p)} className={liked[p.id] ? 'liked' : ''}>{liked[p.id] ? '♥' : '♡'} {p.likes}</button>
+              <button onClick={() => toggleComments(p)}>▢ Comment {p.comments || 0}</button>
+              <button onClick={() => { if (p.image_url) { navigator.clipboard?.writeText(p.image_url); setChatNotice('Post media link copied when clipboard access is available.'); } else setChatNotice('Share links are coming in a future VYBORA update.'); }}>↗ Share</button>
               <button onClick={(e) => e.currentTarget.classList.toggle('saved')}>♧ Save</button>
             </div>
+            {commentOpen[p.id] && <section className="comments-panel" aria-label="Post comments">
+              <div className="comments-list">{(commentsByPost[p.id] || []).length ? commentsByPost[p.id].map((comment) => <div className="comment-item" key={comment.id}><span className="comment-avatar">{comment.user?.[0]?.toUpperCase() || 'V'}</span><div><b>{comment.user}</b><p>{comment.content}</p><small>{comment.created_at ? new Date(comment.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'just now'}</small></div></div>) : <p className="comments-empty">No comments yet. Start the conversation ✦</p>}</div>
+              <form className="comment-composer" onSubmit={(event) => submitComment(event, p)}>
+                <input value={commentDrafts[p.id] || ''} onChange={(event) => setCommentDrafts((current) => ({ ...current, [p.id]: event.target.value }))} placeholder={session ? 'Write a comment…' : 'Sign in to comment…'} maxLength={1000} aria-label="Write a comment" />
+                <button type="submit" disabled={!!commentBusy[p.id] || !(commentDrafts[p.id] || '').trim()}>{commentBusy[p.id] ? 'Sending…' : 'Send'}</button>
+              </form>
+            </section>}
           </article>) : <div className="feed-empty"><span>✦</span><b>Your feed starts here</b><p>Share the first moment with your people.</p></div>}
         </section>
       </> : tab === 'Messages' ? <section className="messages-panel">
