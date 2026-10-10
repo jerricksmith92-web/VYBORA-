@@ -235,3 +235,11 @@ nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
 .chat-list-copy small{font-size:10px;color:#a49bac;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-list-copy small.presence-online,.thread-heading small.presence-online{color:#c5ff67}
 .chat-list-copy small.presence-offline{color:#94899f}
+
+
+/* Lightweight real-time typing hint */
+.typing-indicator{margin:0 0 8px;padding:0 4px;color:#c5ff67;font-size:12px;min-height:15px;animation:typingFadeIn .16s ease-out}
+.typing-indicator span{display:inline-block;animation:typingPulse 1s infinite ease-in-out}
+@keyframes typingPulse{0%,60%,100%{opacity:.25}30%{opacity:1}}
+@keyframes typingFadeIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.typing-indicator,.typing-indicator span{animation:none}}
