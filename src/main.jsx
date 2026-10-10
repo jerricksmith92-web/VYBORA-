@@ -446,18 +446,28 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         if (payload.eventType === 'INSERT' && payload.new) {
           setChatMessages((current) => {
             if (current.some((message) => message.id === payload.new.id)) return current;
-            return [...current, payload.new].sort((a, b) => {
+            return [...current, { ...payload.new, readByIds: [] }].sort((a, b) => {
               const at = new Date(a.created_at || 0).getTime();
               const bt = new Date(b.created_at || 0).getTime();
               return at - bt;
             });
           });
+          if (payload.new.sender_id !== session.user.id) markIncomingMessagesRead(activeChatId, [payload.new]);
           loadChats();
         } else if (payload.eventType === 'UPDATE' && payload.new) {
           setChatMessages((current) => current.map((message) => message.id === payload.new.id ? payload.new : message));
         } else if (payload.eventType === 'DELETE' && payload.old) {
           setChatMessages((current) => current.filter((message) => message.id !== payload.old.id));
         }
+      })
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'message_reads'
+      }, ({ new: receipt }) => {
+        if (!receipt) return;
+        setChatMessages((current) => current.map((message) => message.id === receipt.message_id
+          ? { ...message, readByIds: [...new Set([...(message.readByIds || []), receipt.user_id])] }
+          : message));
+        loadChats();
       })
       .subscribe((status) => {
         typingChannelReadyRef.current = status === 'SUBSCRIBED';
@@ -559,6 +569,18 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         .order('created_at', { ascending: false })
         .limit(500);
       if (recentMessageError) throw recentMessageError;
+      const recentIds = (recentMessages || []).map((message) => message.id);
+      const { data: myReadRows, error: myReadError } = recentIds.length
+        ? await supabase.from('message_reads').select('message_id').eq('user_id', session.user.id).in('message_id', recentIds)
+        : { data: [], error: null };
+      if (myReadError) throw myReadError;
+      const readMessageIds = new Set((myReadRows || []).map((row) => row.message_id));
+      const unreadCounts = {};
+      (recentMessages || []).forEach((message) => {
+        if (message.sender_id !== session.user.id && !readMessageIds.has(message.id)) {
+          unreadCounts[message.conversation_id] = (unreadCounts[message.conversation_id] || 0) + 1;
+        }
+      });
       const latestByConversation = {};
       (recentMessages || []).forEach((message) => {
         if (!latestByConversation[message.conversation_id]) latestByConversation[message.conversation_id] = message;
@@ -580,6 +602,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
           label,
           otherProfiles,
           memberIds: membersByConversation[conversation.id] || [],
+          unreadCount: unreadCounts[conversation.id] || 0,
           lastMessage,
           lastActivityAt: lastMessage?.created_at || conversation.created_at
         };
@@ -751,7 +774,43 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
       setChatError(error.message || 'Could not load messages.');
       return;
     }
-    setChatMessages(data || []);
+    const rows = data || [];
+    const messageIds = rows.map((message) => message.id);
+    const { data: readRows, error: readError } = messageIds.length
+      ? await supabase.from('message_reads').select('message_id,user_id,read_at').in('message_id', messageIds)
+      : { data: [], error: null };
+    if (readError) {
+      setChatError('Could not load read receipts: ' + readError.message);
+      return;
+    }
+    const readsByMessage = {};
+    (readRows || []).forEach((receipt) => {
+      if (!readsByMessage[receipt.message_id]) readsByMessage[receipt.message_id] = [];
+      readsByMessage[receipt.message_id].push(receipt.user_id);
+    });
+    setChatMessages(rows.map((message) => ({ ...message, readByIds: readsByMessage[message.id] || [] })));
+    await markIncomingMessagesRead(conversationId, rows);
+  }
+
+  async function markIncomingMessagesRead(conversationId, messages) {
+    if (!supabase || !session?.user?.id || !conversationId) return;
+    const incomingIds = (messages || []).filter((message) => message.sender_id !== session.user.id).map((message) => message.id);
+    if (!incomingIds.length) return;
+    const { data: existing, error: existingError } = await supabase.from('message_reads')
+      .select('message_id').eq('user_id', session.user.id).in('message_id', incomingIds);
+    if (existingError) { setChatError('Could not mark messages as seen: ' + existingError.message); return; }
+    const alreadyRead = new Set((existing || []).map((row) => row.message_id));
+    const missing = incomingIds.filter((id) => !alreadyRead.has(id));
+    if (missing.length) {
+      const { error } = await supabase.from('message_reads').insert(missing.map((message_id) => ({ message_id, user_id: session.user.id })));
+      if (error && error.code !== '23505') { setChatError('Could not mark messages as seen: ' + error.message); return; }
+    }
+    setChatList((current) => current.map((chat) => chat.id === conversationId ? { ...chat, unreadCount: 0 } : chat));
+  }
+
+  function messageHasBeenSeen(message) {
+    const recipients = (activeChat?.memberIds || []).filter((id) => id !== session?.user?.id);
+    return recipients.length > 0 && recipients.every((id) => (message.readByIds || []).includes(id));
   }
 
   React.useEffect(() => {
@@ -951,7 +1010,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
                   <small className="chat-preview">{chat.lastMessage ? (chat.lastMessage.sender_id === session.user.id ? 'You: ' : '') + (chat.lastMessage.body || (chat.lastMessage.media_url ? '📷 Photo' : 'Message')) : 'No messages yet'}</small>
                   {!chat.is_group && <small className={(chat.otherProfiles?.[0]?.last_seen_at && Date.now() - new Date(chat.otherProfiles[0].last_seen_at).getTime() < 90000) ? 'presence-online' : 'presence-offline'}>{presenceLabel(chat.otherProfiles?.[0])}</small>}
                 </span>
-                <span className="chat-list-meta">{chat.lastActivityAt ? new Date(chat.lastActivityAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}{chat.is_group && <small>Group</small>}</span>
+                <span className="chat-list-meta">{chat.lastActivityAt ? new Date(chat.lastActivityAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}{chat.is_group && <small>Group</small>}{chat.unreadCount > 0 && <b className="chat-unread-badge" aria-label={chat.unreadCount + ' unread messages'}>{chat.unreadCount > 99 ? '99+' : chat.unreadCount}</b>}</span>
               </button>) : !chatLoading ? <p className="search-hint">No conversations yet. Search for a person above to start one.</p> : null}
             </aside>
             <section className="chat-thread">
@@ -959,7 +1018,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
                 <div className="thread-heading"><button className="chat-back-button" type="button" onClick={() => { setActiveChatId(''); setChatMessages([]); setChatError(''); setChatNotice(''); }} aria-label="Back to conversations">‹ Back</button><div className="mini-avatar">{!activeChat.is_group && activeChat.otherProfiles?.[0]?.avatar_url ? <img src={activeChat.otherProfiles[0].avatar_url} alt="" /> : (activeChat.label || 'C')[0].toUpperCase()}</div><div className="thread-person"><b>{activeChat.label}</b><small>{activeChat.is_group ? 'Group conversation' : presenceLabel(activeChat.otherProfiles?.[0])}</small></div></div>
                 <div className="message-list" aria-live="polite" ref={messageListRef}>
                   {chatMessages.length ? chatMessages.map((message) => <div key={message.id} className={'message-row ' + (message.sender_id === session.user.id ? 'mine' : 'theirs')}>
-                    <div className="message-bubble">{message.media_url && (message.media_url.match(/\.(mp4|webm|mov|m4v)(\?|$)/i) ? <video className="message-video" src={message.media_url} controls playsInline preload="metadata" /> : <a className="message-photo-link" href={message.media_url} target="_blank" rel="noreferrer"><img className="message-photo" src={message.media_url} alt="Photo message" loading="lazy" /></a>)}{message.body && <p>{message.body}</p>}<small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
+                    <div className="message-bubble">{message.media_url && (message.media_url.match(/\.(mp4|webm|mov|m4v)(\?|$)/i) ? <video className="message-video" src={message.media_url} controls playsInline preload="metadata" /> : <a className="message-photo-link" href={message.media_url} target="_blank" rel="noreferrer"><img className="message-photo" src={message.media_url} alt="Photo message" loading="lazy" /></a>)}{message.body && <p>{message.body}</p>}<small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}{message.sender_id === session.user.id && <span className={'message-receipt ' + (messageHasBeenSeen(message) ? 'is-seen' : '')}> · {messageHasBeenSeen(message) ? 'Seen ✓✓' : 'Sent ✓'}</span>}</small></div>
                   </div>) : <p className="search-hint thread-empty">No messages yet. Say hello 👋</p>}
                 </div>
                 {typingUserId && <p className="typing-indicator" aria-live="polite">{activeChat?.otherProfiles?.find((profile) => profile.id === typingUserId)?.display_name || cleanUsername(activeChat?.otherProfiles?.find((profile) => profile.id === typingUserId)?.username) || 'Someone'} is typing<span>…</span></p>}
