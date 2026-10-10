@@ -302,3 +302,11 @@ nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
 .profile-post-tile img,.profile-post-tile video{width:100%;height:100%;object-fit:cover}
 .profile-post-tile p{padding:8px;font-size:12px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical}
 @media(max-width:560px){.user-profile-view{padding:18px 12px}.profile-post-grid{margin-left:-12px;width:calc(100% + 24px)}}
+
+/* Feed post author navigation */
+.post-author-open{display:flex;align-items:center;gap:10px;min-width:0;text-align:left;border:0;background:transparent;color:inherit;padding:0;cursor:pointer}
+.post-author-open .avatar{flex-shrink:0;overflow:hidden}
+.post-author-open .avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.post-author-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.post-author-copy b{font-weight:750}
+.post-author-copy small{color:#a99bb9;font-size:11px}
