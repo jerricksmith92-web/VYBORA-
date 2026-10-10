@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { House, Compass, PlusSquare, MessageCircle, Bell, UserRound, Heart, MessageSquare, Share2, Bookmark, Send, Search, RefreshCw } from 'lucide-react';
+import { House, Compass, PlusSquare, MessageCircle, Bell, UserRound, Heart, MessageSquare, Share2, Bookmark, Send, Search, RefreshCw, ImagePlus, X } from 'lucide-react';
 import { supabase, supabaseConfigured } from './supabase.js';
 import './style.css';
 
@@ -43,6 +43,9 @@ function App() {
   const [chatMessages, setChatMessages] = React.useState([]);
   const messageListRef = React.useRef(null);
   const [messageDraft, setMessageDraft] = React.useState('');
+  const [messageImage, setMessageImage] = React.useState(null);
+  const [messageImagePreview, setMessageImagePreview] = React.useState('');
+  const messageFileRef = React.useRef(null);
   const [typingUserId, setTypingUserId] = React.useState('');
   const typingChannelRef = React.useRef(null);
   const typingChannelReadyRef = React.useRef(false);
@@ -529,7 +532,7 @@ function App() {
       const profileMap = Object.fromEntries(profileRows.map((profile) => [profile.id, profile]));
       const { data: recentMessages, error: recentMessageError } = await supabase
         .from('messages')
-        .select('id,conversation_id,sender_id,body,created_at')
+        .select('id,conversation_id,sender_id,body,media_url,created_at')
         .in('conversation_id', ids)
         .order('created_at', { ascending: false })
         .limit(500);
@@ -680,26 +683,62 @@ function App() {
     }
   }
 
+  function chooseMessageImage(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setChatError('Choose a photo from your library.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setChatError('Photos must be 8 MB or smaller.');
+      event.target.value = '';
+      return;
+    }
+    setChatError('');
+    setMessageImage(file);
+    setMessageImagePreview(URL.createObjectURL(file));
+  }
+
+  React.useEffect(() => {
+    return () => { if (messageImagePreview) URL.revokeObjectURL(messageImagePreview); };
+  }, [messageImagePreview]);
+
   async function sendMessage(e) {
     e.preventDefault();
     const body = messageDraft.trim();
-    if (!body || !activeChatId || !session?.user?.id || !supabase || sendingMessage) return;
+    if ((!body && !messageImage) || !activeChatId || !session?.user?.id || !supabase || sendingMessage) return;
     setSendingMessage(true);
     setChatError('');
     try {
+      let mediaUrl = null;
+      if (messageImage) {
+        const extension = (messageImage.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+        const path = session.user.id + '/chat/' + crypto.randomUUID() + '.' + extension;
+        const { error: uploadError } = await supabase.storage.from('post-media').upload(path, messageImage, {
+          cacheControl: '3600', upsert: false, contentType: messageImage.type
+        });
+        if (uploadError) throw uploadError;
+        mediaUrl = supabase.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+      }
       const { data, error } = await supabase
         .from('messages')
         .insert({
           id: crypto.randomUUID(),
           conversation_id: activeChatId,
           sender_id: session.user.id,
-          body
+          body,
+          media_url: mediaUrl
         })
-        .select('id,conversation_id,sender_id,body,created_at')
+        .select('id,conversation_id,sender_id,body,media_url,created_at')
         .single();
       if (error) throw error;
       setChatMessages((current) => current.some((message) => message.id === data.id) ? current : [...current, data]);
       setMessageDraft('');
+      setMessageImage(null);
+      setMessageImagePreview('');
+      if (messageFileRef.current) messageFileRef.current.value = '';
     } catch (err) {
       setChatError(err.message || 'Message could not be sent.');
     } finally {
@@ -805,7 +844,7 @@ function App() {
             <input id="profile-search" value={profileSearch} onChange={(e) => setProfileSearch(e.target.value)} placeholder="Search username or display name" />
             {profileSearch.trim() && <div className="profile-results">
               {filteredProfiles.length ? filteredProfiles.map((profile) => <div className="profile-result" key={profile.id}>
-                <div className="mini-avatar">{(profile.display_name || cleanUsername(profile.username) || '?')[0].toUpperCase()}</div>
+                <div className="mini-avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : (profile.display_name || cleanUsername(profile.username) || '?')[0].toUpperCase()}</div>
                 <div className="profile-result-name"><b>{profile.display_name || cleanUsername(profile.username) || 'VYBORA user'}</b><small>{profile.username ? '@' + cleanUsername(profile.username) : ''}</small></div>
                 <button disabled={!!startingChatId} onClick={() => startConversation(profile)}>{startingChatId === profile.id ? 'Opening…' : 'Message'}</button>
               </div>) : <p className="search-hint">No matching profiles found.</p>}
@@ -815,10 +854,10 @@ function App() {
             <aside className={'chat-list ' + (activeChatId ? 'chat-list-in-thread' : 'chat-list-only')}>
               <div className="chat-list-heading">Your chats {chatLoading ? '· Loading…' : ''}</div>
               {chatList.length ? chatList.map((chat) => <button key={chat.id} className={'chat-list-item ' + (chat.id === activeChatId ? 'selected' : '')} onClick={() => { setActiveChatId(chat.id); setChatError(''); setChatNotice(''); }}>
-                <div className="mini-avatar">{(chat.label || 'C')[0].toUpperCase()}</div>
+                <div className="mini-avatar">{!chat.is_group && chat.otherProfiles?.[0]?.avatar_url ? <img src={chat.otherProfiles[0].avatar_url} alt="" /> : (chat.label || 'C')[0].toUpperCase()}</div>
                 <span className="chat-list-copy">
                   <span className="chat-list-label">{chat.label}</span>
-                  <small className="chat-preview">{chat.lastMessage ? (chat.lastMessage.sender_id === session.user.id ? 'You: ' : '') + chat.lastMessage.body : 'No messages yet'}</small>
+                  <small className="chat-preview">{chat.lastMessage ? (chat.lastMessage.sender_id === session.user.id ? 'You: ' : '') + (chat.lastMessage.body || (chat.lastMessage.media_url ? '📷 Photo' : 'Message')) : 'No messages yet'}</small>
                   {!chat.is_group && <small className={(chat.otherProfiles?.[0]?.last_seen_at && Date.now() - new Date(chat.otherProfiles[0].last_seen_at).getTime() < 90000) ? 'presence-online' : 'presence-offline'}>{presenceLabel(chat.otherProfiles?.[0])}</small>}
                 </span>
                 <span className="chat-list-meta">{chat.lastActivityAt ? new Date(chat.lastActivityAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}{chat.is_group && <small>Group</small>}</span>
@@ -826,16 +865,19 @@ function App() {
             </aside>
             <section className="chat-thread">
               {activeChat ? <>
-                <div className="thread-heading"><button className="chat-back-button" type="button" onClick={() => { setActiveChatId(''); setChatMessages([]); setChatError(''); setChatNotice(''); }} aria-label="Back to conversations">‹ Back</button><div className="mini-avatar">{(activeChat.label || 'C')[0].toUpperCase()}</div><div className="thread-person"><b>{activeChat.label}</b><small>{activeChat.is_group ? 'Group conversation' : presenceLabel(activeChat.otherProfiles?.[0])}</small></div></div>
+                <div className="thread-heading"><button className="chat-back-button" type="button" onClick={() => { setActiveChatId(''); setChatMessages([]); setChatError(''); setChatNotice(''); }} aria-label="Back to conversations">‹ Back</button><div className="mini-avatar">{!activeChat.is_group && activeChat.otherProfiles?.[0]?.avatar_url ? <img src={activeChat.otherProfiles[0].avatar_url} alt="" /> : (activeChat.label || 'C')[0].toUpperCase()}</div><div className="thread-person"><b>{activeChat.label}</b><small>{activeChat.is_group ? 'Group conversation' : presenceLabel(activeChat.otherProfiles?.[0])}</small></div></div>
                 <div className="message-list" aria-live="polite" ref={messageListRef}>
                   {chatMessages.length ? chatMessages.map((message) => <div key={message.id} className={'message-row ' + (message.sender_id === session.user.id ? 'mine' : 'theirs')}>
-                    <div className="message-bubble"><p>{message.body}</p><small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
+                    <div className="message-bubble">{message.media_url && <a className="message-photo-link" href={message.media_url} target="_blank" rel="noreferrer"><img className="message-photo" src={message.media_url} alt="Photo message" loading="lazy" /></a>}{message.body && <p>{message.body}</p>}<small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
                   </div>) : <p className="search-hint thread-empty">No messages yet. Say hello 👋</p>}
                 </div>
                 {typingUserId && <p className="typing-indicator" aria-live="polite">{activeChat?.otherProfiles?.find((profile) => profile.id === typingUserId)?.display_name || cleanUsername(activeChat?.otherProfiles?.find((profile) => profile.id === typingUserId)?.username) || 'Someone'} is typing<span>…</span></p>}
+                {messageImagePreview && <div className="message-image-preview"><img src={messageImagePreview} alt="Photo preview" /><button type="button" onClick={() => { setMessageImage(null); setMessageImagePreview(''); if (messageFileRef.current) messageFileRef.current.value = ''; }} aria-label="Remove photo"><X size={16} /></button></div>}
                 <form className="message-composer" onSubmit={sendMessage}>
+                  <input ref={messageFileRef} className="message-file-input" type="file" accept="image/*" onChange={chooseMessageImage} aria-label="Choose a photo" />
+                  <button className="message-photo-button" type="button" onClick={() => messageFileRef.current?.click()} disabled={sendingMessage} aria-label="Add a photo" title="Add a photo"><ImagePlus size={19} /></button>
                   <input value={messageDraft} onChange={(e) => handleMessageDraftChange(e.target.value)} maxLength={5000} placeholder="Write a message…" aria-label="Write a message" />
-                  <button type="submit" disabled={sendingMessage || !messageDraft.trim()}>{sendingMessage ? 'Sending…' : <><Send size={16} strokeWidth={2.2} /> Send</>}</button>
+                  <button type="submit" disabled={sendingMessage || (!messageDraft.trim() && !messageImage)}>{sendingMessage ? 'Sending…' : <><Send size={16} strokeWidth={2.2} /> Send</>}</button>
                 </form>
               </> : <div className="chat-empty"><div className="bigicon">✉</div><h3>Your conversations</h3><p>Choose a chat or search for a person above to begin.</p></div>}
             </section>
