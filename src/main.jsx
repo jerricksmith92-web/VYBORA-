@@ -36,6 +36,9 @@ function App() {
   const [activeChatId, setActiveChatId] = React.useState('');
   const [chatMessages, setChatMessages] = React.useState([]);
   const [messageDraft, setMessageDraft] = React.useState('');
+  const [typingUserId, setTypingUserId] = React.useState('');
+  const typingChannelRef = React.useRef(null);
+  const typingStopTimerRef = React.useRef(null);
   const [sendingMessage, setSendingMessage] = React.useState(false);
   const [profileSearch, setProfileSearch] = React.useState('');
   const [profiles, setProfiles] = React.useState([]);
@@ -387,7 +390,11 @@ function App() {
     }
     loadMessages(activeChatId);
     const channel = supabase
-      .channel('vybora-chat-' + activeChatId)
+      .channel('vybora-chat-' + activeChatId, { config: { broadcast: { self: false } } })
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (!payload || payload.userId === session.user.id) return;
+        setTypingUserId(payload.isTyping ? payload.userId : '');
+      })
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -410,7 +417,8 @@ function App() {
         }
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    typingChannelRef.current = channel;
+    return () => { typingChannelRef.current = null; setTypingUserId(''); supabase.removeChannel(channel); };
   }, [activeChatId, session?.user?.id]);
 
   async function handleAuth(e) {
@@ -554,6 +562,19 @@ function App() {
       return;
     }
     setChatMessages(data || []);
+  }
+
+  function handleMessageDraftChange(value) {
+    setMessageDraft(value);
+    const channel = typingChannelRef.current;
+    if (!channel || !session?.user?.id || !activeChatId) return;
+    channel.send({ type: 'broadcast', event: 'typing', payload: { userId: session.user.id, isTyping: Boolean(value.trim()) } });
+    if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
+    if (value.trim()) {
+      typingStopTimerRef.current = setTimeout(() => {
+        channel.send({ type: 'broadcast', event: 'typing', payload: { userId: session.user.id, isTyping: false } });
+      }, 1800);
+    }
   }
 
   async function sendMessage(e) {
@@ -702,8 +723,9 @@ function App() {
                     <div className="message-bubble"><p>{message.body}</p><small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
                   </div>) : <p className="search-hint thread-empty">No messages yet. Say hello 👋</p>}
                 </div>
+                {typingUserId && activeChat?.otherProfiles?.some((profile) => profile.id === typingUserId) && <p className="typing-indicator" aria-live="polite">{activeChat.otherProfiles.find((profile) => profile.id === typingUserId)?.display_name || activeChat.otherProfiles.find((profile) => profile.id === typingUserId)?.username || 'Someone'} is typing<span>…</span></p>}
                 <form className="message-composer" onSubmit={sendMessage}>
-                  <input value={messageDraft} onChange={(e) => setMessageDraft(e.target.value)} maxLength={5000} placeholder="Write a message…" aria-label="Write a message" />
+                  <input value={messageDraft} onChange={(e) => handleMessageDraftChange(e.target.value)} maxLength={5000} placeholder="Write a message…" aria-label="Write a message" />
                   <button type="submit" disabled={sendingMessage || !messageDraft.trim()}>{sendingMessage ? 'Sending…' : <><Send size={16} strokeWidth={2.2} /> Send</>}</button>
                 </form>
               </> : <div className="chat-empty"><div className="bigicon">✉</div><h3>Your conversations</h3><p>Choose a chat or search for a person above to begin.</p></div>}
