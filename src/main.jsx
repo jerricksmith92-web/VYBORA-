@@ -549,7 +549,7 @@ function App() {
         };
       }).sort((a, b) => new Date(b.lastActivityAt || 0).getTime() - new Date(a.lastActivityAt || 0).getTime());
       setChatList(formatted);
-      setActiveChatId((current) => formatted.some((chat) => chat.id === current) ? current : (formatted[0]?.id || ''));
+      setActiveChatId((current) => formatted.some((chat) => chat.id === current) ? current : '');
     } catch (err) {
       setChatError(err.message || 'Could not load conversations.');
     } finally {
