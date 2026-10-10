@@ -277,3 +277,13 @@ nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
 .following-button{background:#211b2b;border-color:#514160;color:#ded2ed}
 .follow-button:disabled,.following-button:disabled{opacity:.6}
 @media(max-width:560px){.follow-stats{margin:14px 0 18px;padding:13px 8px}.follow-stats b{font-size:20px}.people-row{padding:9px;gap:8px}.people-avatar{width:37px;height:37px;flex-basis:37px}.follow-button,.following-button{padding:9px 10px}}
+
+/* Explore: searchable people and community feed */
+.explore-community{width:100%;max-width:720px;margin:0 auto;text-align:left}
+.explore-community .people-heading{margin-top:20px}
+.explore-community .people-list{margin-bottom:24px}
+.explore-post-author{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.explore-post-author b{font-size:13px;color:#f8f5fb}
+.explore-post-author small{font-size:11px;color:#a99bb9}
+.explore-community .post-image{max-height:420px}
+.explore-community .muted{color:#a99bb9;font-size:12px;text-align:center;padding:12px}
