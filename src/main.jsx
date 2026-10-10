@@ -51,6 +51,11 @@ function App() {
   const [notificationError, setNotificationError] = React.useState('');
   const [notificationLoading, setNotificationLoading] = React.useState(false);
   const [highlightedPostId, setHighlightedPostId] = React.useState('');
+  const [myProfile, setMyProfile] = React.useState(null);
+  const [followStats, setFollowStats] = React.useState({ followers: 0, following: 0 });
+  const [followingIds, setFollowingIds] = React.useState([]);
+  const [followBusyId, setFollowBusyId] = React.useState('');
+  const [followError, setFollowError] = React.useState('');
 
   React.useEffect(() => {
     if (!supabase) return undefined;
@@ -92,10 +97,9 @@ function App() {
   }, [tab, highlightedPostId, posts]);
 
   React.useEffect(() => {
-    if (tab === 'Messages' && session && supabase) {
-      loadChats();
-      loadProfiles();
-    }
+    if (['Messages', 'Explore', 'Profile'].includes(tab) && session && supabase) loadProfiles();
+    if (tab === 'Messages' && session && supabase) loadChats();
+    if (tab === 'Profile' && session && supabase) loadFollowData();
   }, [tab, session?.user?.id]);
 
   React.useEffect(() => {
@@ -581,6 +585,42 @@ function App() {
     setProfiles(data || []);
   }
 
+  async function loadFollowData() {
+    if (!supabase || !session?.user?.id) return;
+    setFollowError('');
+    const userId = session.user.id;
+    const [{ data: profile, error: profileError }, { count: followers, error: followersError }, { count: following, error: followingError }, { data: followingRows, error: followingRowsError }] = await Promise.all([
+      supabase.from('profiles').select('id,username,display_name,avatar_url').eq('id', userId).maybeSingle(),
+      supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', userId),
+      supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', userId),
+      supabase.from('follows').select('following_id').eq('follower_id', userId)
+    ]);
+    const problem = profileError || followersError || followingError || followingRowsError;
+    if (problem) { setFollowError('Could not load followers yet: ' + problem.message); return; }
+    setMyProfile(profile || {});
+    setFollowStats({ followers: followers || 0, following: following || 0 });
+    setFollowingIds((followingRows || []).map((row) => row.following_id));
+  }
+
+  async function toggleFollow(profile) {
+    if (!supabase || !session?.user?.id || !profile?.id || followBusyId) return;
+    const alreadyFollowing = followingIds.includes(profile.id);
+    setFollowBusyId(profile.id);
+    setFollowError('');
+    setFollowingIds((current) => alreadyFollowing ? current.filter((id) => id !== profile.id) : [...current, profile.id]);
+    setFollowStats((current) => ({ ...current, following: Math.max(0, current.following + (alreadyFollowing ? -1 : 1)) }));
+    try {
+      const result = alreadyFollowing
+        ? await supabase.from('follows').delete().eq('follower_id', session.user.id).eq('following_id', profile.id)
+        : await supabase.from('follows').insert({ follower_id: session.user.id, following_id: profile.id });
+      if (result.error) throw result.error;
+    } catch (err) {
+      setFollowingIds((current) => alreadyFollowing ? [...current, profile.id] : current.filter((id) => id !== profile.id));
+      setFollowStats((current) => ({ ...current, following: Math.max(0, current.following + (alreadyFollowing ? 1 : -1)) }));
+      setFollowError(err.message || 'Could not update follow.');
+    } finally { setFollowBusyId(''); }
+  }
+
   async function loadMessages(conversationId) {
     if (!supabase || !conversationId) return;
     const { data, error } = await supabase
@@ -789,8 +829,8 @@ function App() {
           </div> : !notificationError ? <div className="chat-empty"><div className="bigicon">♡</div><h3>You’re all caught up</h3><p>When someone likes or comments on your posts, you’ll see it here. Tap any notification to jump straight to that post.</p></div> : null}
         </>}
       </section> : tab === 'Profile' ? <section className="placeholder auth-panel">
-        <div className="bigicon">◉</div><h2>{session ? 'Your account' : 'Join VYBORA'}</h2>
-        {session ? <><p>You are signed in as <b>{session.user.email}</b>.</p><button onClick={handleSignOut}>Sign out</button></> : <>
+        <div className="bigicon">◉</div><h2>{session ? (myProfile?.display_name || myProfile?.username || 'Your profile') : 'Join VYBORA'}</h2>
+        {session ? <><p className="profile-handle">{myProfile?.username ? '@' + myProfile.username : session.user.email}</p><div className="follow-stats"><div><b>{posts.filter((post) => post.handle === (myProfile?.username ? '@' + myProfile.username : '')).length}</b><small>Posts</small></div><div><b>{followStats.followers}</b><small>Followers</small></div><div><b>{followStats.following}</b><small>Following</small></div></div><p>Build your VYBORA community. Follow people whose moments you want to see.</p><div className="people-heading"><h3>Discover people</h3><span>{profiles.length} members</span></div><input className="explore-input" value={profileSearch} onChange={(e) => setProfileSearch(e.target.value)} placeholder="Search people by name or username…" />{followError && <p className="post-alert" role="alert">{followError}</p>}<div className="people-list">{profiles.filter((profile) => !profileSearch.trim() || [profile.username, profile.display_name].some((value) => (value || '').toLowerCase().includes(profileSearch.trim().toLowerCase()))).map((profile) => <div className="people-row" key={profile.id}><div className="people-avatar">{(profile.display_name || profile.username || 'V')[0].toUpperCase()}</div><div className="people-copy"><b>{profile.display_name || profile.username || 'VYBORA member'}</b><small>{profile.username ? '@' + profile.username : 'VYBORA member'}</small></div><button type="button" disabled={followBusyId === profile.id} className={followingIds.includes(profile.id) ? 'following-button' : 'follow-button'} onClick={() => toggleFollow(profile)}>{followBusyId === profile.id ? '…' : followingIds.includes(profile.id) ? 'Following' : 'Follow'}</button></div>)}{!profiles.length && <p className="muted">More people will appear here as they join VYBORA.</p>}</div><button onClick={handleSignOut}>Sign out</button></> : <>
           <p>Create an account or sign in to message your people.</p>
           <div className="auth-tabs">
             <button className={authMode === 'signin' ? 'selected' : ''} onClick={() => { setAuthMode('signin'); setAuthMessage(''); }}>Sign in</button>
