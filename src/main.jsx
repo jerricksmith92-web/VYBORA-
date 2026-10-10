@@ -776,13 +776,14 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
   function chooseMessageImage(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setChatError('Choose a photo from your library.');
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      setChatError('Choose a photo or video from your library.');
       event.target.value = '';
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setChatError('Photos must be 8 MB or smaller.');
+    const maxBytes = file.type.startsWith('video/') ? 20 * 1024 * 1024 : 8 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setChatError(file.type.startsWith('video/') ? 'Videos must be 20 MB or smaller.' : 'Photos must be 8 MB or smaller.');
       event.target.value = '';
       return;
     }
@@ -958,14 +959,14 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
                 <div className="thread-heading"><button className="chat-back-button" type="button" onClick={() => { setActiveChatId(''); setChatMessages([]); setChatError(''); setChatNotice(''); }} aria-label="Back to conversations">‹ Back</button><div className="mini-avatar">{!activeChat.is_group && activeChat.otherProfiles?.[0]?.avatar_url ? <img src={activeChat.otherProfiles[0].avatar_url} alt="" /> : (activeChat.label || 'C')[0].toUpperCase()}</div><div className="thread-person"><b>{activeChat.label}</b><small>{activeChat.is_group ? 'Group conversation' : presenceLabel(activeChat.otherProfiles?.[0])}</small></div></div>
                 <div className="message-list" aria-live="polite" ref={messageListRef}>
                   {chatMessages.length ? chatMessages.map((message) => <div key={message.id} className={'message-row ' + (message.sender_id === session.user.id ? 'mine' : 'theirs')}>
-                    <div className="message-bubble">{message.media_url && <a className="message-photo-link" href={message.media_url} target="_blank" rel="noreferrer"><img className="message-photo" src={message.media_url} alt="Photo message" loading="lazy" /></a>}{message.body && <p>{message.body}</p>}<small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
+                    <div className="message-bubble">{message.media_url && (message.media_url.match(/\.(mp4|webm|mov|m4v)(\?|$)/i) ? <video className="message-video" src={message.media_url} controls playsInline preload="metadata" /> : <a className="message-photo-link" href={message.media_url} target="_blank" rel="noreferrer"><img className="message-photo" src={message.media_url} alt="Photo message" loading="lazy" /></a>)}{message.body && <p>{message.body}</p>}<small>{message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</small></div>
                   </div>) : <p className="search-hint thread-empty">No messages yet. Say hello 👋</p>}
                 </div>
                 {typingUserId && <p className="typing-indicator" aria-live="polite">{activeChat?.otherProfiles?.find((profile) => profile.id === typingUserId)?.display_name || cleanUsername(activeChat?.otherProfiles?.find((profile) => profile.id === typingUserId)?.username) || 'Someone'} is typing<span>…</span></p>}
-                {messageImagePreview && <div className="message-image-preview"><img src={messageImagePreview} alt="Photo preview" /><button type="button" onClick={() => { setMessageImage(null); setMessageImagePreview(''); if (messageFileRef.current) messageFileRef.current.value = ''; }} aria-label="Remove photo"><X size={16} /></button></div>}
+                {messageImagePreview && <div className="message-image-preview">{messageImage?.type?.startsWith('video/') ? <video src={messageImagePreview} controls playsInline preload="metadata" aria-label="Video preview" /> : <img src={messageImagePreview} alt="Photo preview" />}<button type="button" onClick={() => { setMessageImage(null); setMessageImagePreview(''); if (messageFileRef.current) messageFileRef.current.value = ''; }} aria-label="Remove selected media"><X size={16} /></button></div>}
                 <form className="message-composer" onSubmit={sendMessage}>
-                  <input ref={messageFileRef} className="message-file-input" type="file" accept="image/*" onChange={chooseMessageImage} aria-label="Choose a photo" />
-                  <button className="message-photo-button" type="button" onClick={() => messageFileRef.current?.click()} disabled={sendingMessage} aria-label="Add a photo" title="Add a photo"><ImagePlus size={19} /></button>
+                  <input ref={messageFileRef} className="message-file-input" type="file" accept="image/*,video/*" onChange={chooseMessageImage} aria-label="Choose a photo or video" />
+                  <button className="message-photo-button" type="button" onClick={() => messageFileRef.current?.click()} disabled={sendingMessage} aria-label="Add a photo or video" title="Add a photo or video"><ImagePlus size={19} /></button>
                   <input value={messageDraft} onChange={(e) => handleMessageDraftChange(e.target.value)} maxLength={5000} placeholder="Write a message…" aria-label="Write a message" />
                   <button type="submit" disabled={sendingMessage || (!messageDraft.trim() && !messageImage)}>{sendingMessage ? 'Sending…' : <><Send size={16} strokeWidth={2.2} /> Send</>}</button>
                 </form>
