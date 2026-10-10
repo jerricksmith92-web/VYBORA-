@@ -177,3 +177,16 @@ nav:not(.mobile-nav) button{position:relative}
 nav:not(.mobile-nav) .nav-unread-count{position:absolute;top:2px;right:2px}
 .mobile-nav button>span{position:relative}
 .mobile-unread-count{position:absolute;top:-7px;right:-12px;border:1px solid #100e16}
+
+
+/* Modern filled Lucide icon system */
+nav:not(.mobile-nav) button{gap:8px}
+nav:not(.mobile-nav) button>svg{flex-shrink:0;opacity:.95}
+.postactions button{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.postactions button svg{flex-shrink:0}
+.message-composer button{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.refresh-button{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.mobile-nav button>span{display:grid;place-items:center;min-height:24px}
+.mobile-nav button svg{filter:drop-shadow(0 1px 2px #0003)}
+.mobile-nav button.active svg{color:var(--vy-accent)}
+@media(max-width:560px){.mobile-nav button:nth-child(3)>span{width:34px;height:30px;border-radius:11px;background:var(--vy-accent);color:#171a12}.mobile-nav button:nth-child(3)>span svg{color:#171a12}.mobile-nav button.active:nth-child(3)>span svg{color:#171a12}}
