@@ -171,3 +171,9 @@ nav:not(.mobile-nav) button{position:relative}
 @media(max-width:560px){.notification-item{padding:12px 9px;gap:9px}.notification-icon{width:36px;height:36px}.notification-copy{font-size:12px}.notification-arrow{font-size:15px}}
 
 @media(max-width:560px){.mobile-nav button{padding:4px 6px;min-width:0;flex:1;font-size:18px}.mobile-nav button small{font-size:8px}.mobile-nav button>span{position:relative}.mobile-unread-dot{position:absolute;top:-2px;right:-7px;width:7px;height:7px;border-radius:50%;background:#c5ff67;border:1px solid #100e16}}
+
+/* Unread notification count badges */
+.nav-unread-count,.mobile-unread-count{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#ff4f78;color:#fff;font-size:10px;font-weight:800;font-style:normal;line-height:1;box-sizing:border-box}
+nav:not(.mobile-nav) .nav-unread-count{position:absolute;top:2px;right:2px}
+.mobile-nav button>span{position:relative}
+.mobile-unread-count{position:absolute;top:-7px;right:-12px;border:1px solid #100e16}
