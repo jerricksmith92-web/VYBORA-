@@ -184,6 +184,8 @@ function App() {
       return {
         id: post.id,
         user_id: post.user_id,
+        avatar_url: profile.avatar_url || '',
+        profile_username: profile.username || '',
         user: profile.display_name || profile.username || 'VYBORA member',
         handle: profile.username ? '@' + profile.username : 'community member',
         time: post.created_at ? new Date(post.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'just now',
@@ -769,7 +771,7 @@ function App() {
           <div className="sectionhead"><h2>Your feed</h2><button className="refresh-button" onClick={loadPosts}><RefreshCw size={14} /> Refresh</button></div>
           {engagementError && <p className="post-alert" role="alert">{engagementError}</p>}
           {posts.length ? posts.map((p) => <article className={'post ' + (highlightedPostId === p.id ? 'post-highlight' : '')} id={'post-' + p.id} key={p.id}>
-            <div className="posthead"><div className="avatar">{p.user?.[0]?.toUpperCase() || 'V'}</div><div><b>{p.user}</b><small>{p.handle} · {p.time}</small></div><button className="dots" aria-label="More post options">•••</button></div>
+            <div className="posthead"><button type="button" className="post-author-open" onClick={() => { const profile = profiles.find((item) => item.id === p.user_id); if (profile) openUserProfile(profile); else setChatNotice('Profile details are not available yet.'); }} aria-label={'Open ' + p.user + ' profile'}><div className="avatar">{p.avatar_url ? <img src={p.avatar_url} alt="" /> : (p.user?.[0]?.toUpperCase() || 'V')}</div><span className="post-author-copy"><b>{p.user}</b><small>{p.handle} · {p.time}</small></span></button><button className="dots" aria-label="More post options">•••</button></div>
             {p.text && <p className="posttext">{p.text}</p>}
             {p.image_url && (p.image_url.match(/\.(mp4|mov|webm|m4v)(\?|$)/i) ? <video className="post-image post-video" src={p.image_url} controls playsInline preload="metadata" /> : <img className="post-image" src={p.image_url} alt={'Photo shared by ' + p.user} loading="lazy" />)}
             <div className="postactions">
