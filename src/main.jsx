@@ -41,6 +41,10 @@ function App() {
   const [startingChatId, setStartingChatId] = React.useState('');
   const [activeStory, setActiveStory] = React.useState(null);
   const [exploreSearch, setExploreSearch] = React.useState('');
+  const [notifications, setNotifications] = React.useState([]);
+  const [notificationError, setNotificationError] = React.useState('');
+  const [notificationLoading, setNotificationLoading] = React.useState(false);
+  const [highlightedPostId, setHighlightedPostId] = React.useState('');
 
   React.useEffect(() => {
     if (!supabase) return undefined;
@@ -53,6 +57,22 @@ function App() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  React.useEffect(() => {
+    if (tab === 'Notifications' && session?.user?.id && supabase) loadNotifications();
+  }, [tab, session?.user?.id]);
+
+  React.useEffect(() => {
+    if (tab !== 'Home' || !highlightedPostId) return;
+    const target = document.getElementById('post-' + highlightedPostId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('post-highlight');
+      const timer = setTimeout(() => target.classList.remove('post-highlight'), 2400);
+      setHighlightedPostId('');
+      return () => clearTimeout(timer);
+    }
+  }, [tab, highlightedPostId, posts]);
 
   React.useEffect(() => {
     if (tab === 'Messages' && session && supabase) {
@@ -219,6 +239,48 @@ function App() {
     } finally {
       setCommentBusy((current) => ({ ...current, [post.id]: false }));
     }
+  }
+
+  async function loadNotifications() {
+    if (!supabase || !session?.user?.id) return;
+    setNotificationLoading(true);
+    setNotificationError('');
+    try {
+      const { data, error } = await supabase.from('notifications')
+        .select('id,recipient_id,actor_id,post_id,type,comment_id,is_read,created_at')
+        .eq('recipient_id', session.user.id).order('created_at', { ascending: false }).limit(100);
+      if (error) throw error;
+      const rows = data || [];
+      const actorIds = [...new Set(rows.map((row) => row.actor_id).filter(Boolean))];
+      const postIds = [...new Set(rows.map((row) => row.post_id).filter(Boolean))];
+      const [{ data: actorData }, { data: postData }] = await Promise.all([
+        actorIds.length ? supabase.from('profiles').select('id,username,display_name,avatar_url').in('id', actorIds) : Promise.resolve({ data: [] }),
+        postIds.length ? supabase.from('posts').select('id,content,image_url,user_id').in('id', postIds) : Promise.resolve({ data: [] })
+      ]);
+      const actorMap = Object.fromEntries((actorData || []).map((profile) => [profile.id, profile]));
+      const postMap = Object.fromEntries((postData || []).map((post) => [post.id, post]));
+      setNotifications(rows.map((row) => {
+        const actor = actorMap[row.actor_id] || {};
+        const post = postMap[row.post_id] || {};
+        return { ...row, actorName: actor.display_name || actor.username || 'Someone',
+          postText: post.content || '', postOwnerId: post.user_id || '' };
+      }));
+    } catch (err) {
+      setNotificationError('Could not load notifications. Run supabase/notifications_setup.sql in Supabase SQL Editor. ' + (err.message || ''));
+    } finally {
+      setNotificationLoading(false);
+    }
+  }
+
+  async function openNotification(notification) {
+    if (!notification?.post_id) return;
+    if (!notification.is_read && supabase) {
+      const { error } = await supabase.from('notifications').update({ is_read: true })
+        .eq('id', notification.id).eq('recipient_id', session.user.id);
+      if (!error) setNotifications((current) => current.map((item) => item.id === notification.id ? { ...item, is_read: true } : item));
+    }
+    setHighlightedPostId(notification.post_id);
+    setTab('Home');
   }
 
   function choosePostImage(event) {
@@ -513,7 +575,7 @@ function App() {
     </header>
     <nav>{['Home', 'Explore', 'Messages', 'Notifications', 'Profile'].map((t) =>
       <button className={tab === t ? 'active' : ''} onClick={() => setTab(t)} key={t}>
-        {({ Home: '⌂', Explore: '⌕', Messages: '▤', Notifications: '♡', Profile: '◉' })[t]} <span>{t}</span>
+        {({ Home: '⌂', Explore: '⌕', Messages: '▤', Notifications: '♡', Profile: '◉' })[t]} <span>{t}</span>{t === 'Notifications' && notifications.some((n) => !n.is_read) && <i className="nav-unread-dot" />}
       </button>
     )}</nav>
     <main>
@@ -546,7 +608,7 @@ function App() {
         <section className="feed">
           <div className="sectionhead"><h2>Your feed</h2><button className="refresh-button" onClick={loadPosts}>Refresh ↻</button></div>
           {engagementError && <p className="post-alert" role="alert">{engagementError}</p>}
-          {posts.length ? posts.map((p) => <article className="post" key={p.id}>
+          {posts.length ? posts.map((p) => <article className={'post ' + (highlightedPostId === p.id ? 'post-highlight' : '')} id={'post-' + p.id} key={p.id}>
             <div className="posthead"><div className="avatar">{p.user?.[0]?.toUpperCase() || 'V'}</div><div><b>{p.user}</b><small>{p.handle} · {p.time}</small></div><button className="dots" aria-label="More post options">•••</button></div>
             {p.text && <p className="posttext">{p.text}</p>}
             {p.image_url && (p.image_url.match(/\.(mp4|mov|webm|m4v)(\?|$)/i) ? <video className="post-image post-video" src={p.image_url} controls playsInline preload="metadata" /> : <img className="post-image" src={p.image_url} alt={'Photo shared by ' + p.user} loading="lazy" />)}
@@ -603,6 +665,19 @@ function App() {
               </> : <div className="chat-empty"><div className="bigicon">✉</div><h3>Your conversations</h3><p>Choose a chat or search for a person above to begin.</p></div>}
             </section>
           </div>
+        </>}
+      </section> : tab === 'Notifications' ? <section className="messages-panel notifications-panel">
+        <div className="messages-heading"><div><p className="eyebrow">YOUR COMMUNITY</p><h2>Notifications</h2></div><button className="refresh-button" onClick={loadNotifications}>Refresh ↻</button></div>
+        {!session ? <div className="chat-empty"><div className="bigicon">♡</div><h3>Sign in to see notifications</h3><p>Likes and comments on your posts will show up here.</p><button onClick={() => setTab('Profile')}>Go to sign in</button></div> : <>
+          {notificationError && <p className="chat-alert" role="alert">{notificationError}</p>}
+          {notificationLoading && !notifications.length ? <p className="search-hint">Loading your activity…</p> : notifications.length ? <div className="notifications-list">
+            {notifications.map((notification) => <button key={notification.id} className={'notification-item ' + (notification.is_read ? '' : 'unread')} onClick={() => openNotification(notification)} disabled={!notification.post_id}>
+              <span className={'notification-icon ' + (notification.type === 'like' ? 'notification-like' : 'notification-comment')}>{notification.type === 'like' ? '♥' : '▢'}</span>
+              <span className="notification-copy"><b>{notification.actorName}</b> {notification.type === 'like' ? 'liked your post.' : 'commented on your post.'}<small>{notification.created_at ? new Date(notification.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'just now'} · Tap to view post</small>{notification.postText && <span className="notification-preview">{notification.postText}</span>}</span>
+              {!notification.is_read && <span className="notification-unread-dot" aria-label="Unread" />}
+              <span className="notification-arrow">↗</span>
+            </button>)}
+          </div> : !notificationError ? <div className="chat-empty"><div className="bigicon">♡</div><h3>You’re all caught up</h3><p>When someone likes or comments on your posts, you’ll see it here. Tap any notification to jump straight to that post.</p></div> : null}
         </>}
       </section> : tab === 'Profile' ? <section className="placeholder auth-panel">
         <div className="bigicon">◉</div><h2>{session ? 'Your account' : 'Join VYBORA'}</h2>
