@@ -94,6 +94,15 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
   }, []);
 
   React.useEffect(() => {
+    if (!supabase || !session?.user?.id) { setMyProfile(null); return undefined; }
+    let cancelled = false;
+    supabase.from('profiles').select('id,username,display_name,avatar_url')
+      .eq('id', session.user.id).maybeSingle()
+      .then(({ data, error }) => { if (!cancelled && !error) setMyProfile(data || {}); });
+    return () => { cancelled = true; };
+  }, [session?.user?.id]);
+
+  React.useEffect(() => {
     if (tab === 'Notifications' && session?.user?.id && supabase) loadNotifications();
   }, [tab, session?.user?.id]);
 
@@ -859,7 +868,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     <header>
       <button className="brand" onClick={() => setTab('Home')} aria-label="VYBORA home"><span className="logo">v.</span><span>vybora</span></button>
       <span className="tag">YOUR WORLD, YOUR PEOPLE</span>
-      <button className="avatar header-avatar" onClick={() => setTab('Profile')} aria-label="Open profile">{session?.user?.email?.[0]?.toUpperCase() || 'V'}</button>
+      <button className="avatar header-avatar" onClick={() => setTab('Profile')} aria-label="Open profile">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || session?.user?.email || 'V')[0].toUpperCase()}</button>
     </header>
     <nav>{['Home', 'Explore', 'Messages', 'Notifications', 'Profile'].map((t) =>
       <button className={tab === t ? 'active' : ''} onClick={() => setTab(t)} key={t}>
