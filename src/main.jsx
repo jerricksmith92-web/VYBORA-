@@ -56,6 +56,8 @@ function App() {
   const [followingIds, setFollowingIds] = React.useState([]);
   const [followBusyId, setFollowBusyId] = React.useState('');
   const [followError, setFollowError] = React.useState('');
+  const [viewedProfile, setViewedProfile] = React.useState(null);
+  const [viewedProfileStats, setViewedProfileStats] = React.useState({ posts: 0, followers: 0, following: 0 });
 
   React.useEffect(() => {
     if (!supabase) return undefined;
@@ -181,6 +183,7 @@ function App() {
       const profile = profileMap[post.user_id] || {};
       return {
         id: post.id,
+        user_id: post.user_id,
         user: profile.display_name || profile.username || 'VYBORA member',
         handle: profile.username ? '@' + profile.username : 'community member',
         time: post.created_at ? new Date(post.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'just now',
@@ -585,6 +588,21 @@ function App() {
     setProfiles(data || []);
   }
 
+  async function openUserProfile(profile) {
+    if (!profile?.id) return;
+    setViewedProfile(profile);
+    setTab('Profile');
+    setFollowError('');
+    const [{ count: followerCount, error: followerError }, { count: followingCount, error: followingError }, { count: postCount, error: postError }] = await Promise.all([
+      supabase.from('follows').select('follower_id', { count: 'exact', head: true }).eq('following_id', profile.id),
+      supabase.from('follows').select('following_id', { count: 'exact', head: true }).eq('follower_id', profile.id),
+      supabase.from('posts').select('id', { count: 'exact', head: true }).eq('user_id', profile.id)
+    ]);
+    const problem = followerError || followingError || postError;
+    if (problem) { setFollowError('Some profile details could not load: ' + problem.message); return; }
+    setViewedProfileStats({ posts: postCount || 0, followers: followerCount || 0, following: followingCount || 0 });
+  }
+
   async function loadFollowData() {
     if (!supabase || !session?.user?.id) return;
     setFollowError('');
@@ -828,9 +846,9 @@ function App() {
             </button>)}
           </div> : !notificationError ? <div className="chat-empty"><div className="bigicon">♡</div><h3>You’re all caught up</h3><p>When someone likes or comments on your posts, you’ll see it here. Tap any notification to jump straight to that post.</p></div> : null}
         </>}
-      </section> : tab === 'Profile' ? <section className="placeholder auth-panel">
+      </section> : tab === 'Profile' ? viewedProfile ? <section className="placeholder auth-panel user-profile-view"><button type="button" className="profile-back-link" onClick={() => setViewedProfile(null)}>‹ My profile</button><div className="profile-avatar-large">{viewedProfile.avatar_url ? <img src={viewedProfile.avatar_url} alt="" /> : (viewedProfile.display_name || viewedProfile.username || 'V')[0].toUpperCase()}</div><h2>{viewedProfile.display_name || viewedProfile.username || 'VYBORA member'}</h2><p className="profile-handle">{viewedProfile.username ? '@' + viewedProfile.username : 'VYBORA member'}</p><div className="follow-stats"><div><b>{viewedProfileStats.posts}</b><small>Posts</small></div><div><b>{viewedProfileStats.followers}</b><small>Followers</small></div><div><b>{viewedProfileStats.following}</b><small>Following</small></div></div><button type="button" disabled={followBusyId === viewedProfile.id} className={followingIds.includes(viewedProfile.id) ? 'following-button' : 'follow-button'} onClick={() => toggleFollow(viewedProfile)}>{followBusyId === viewedProfile.id ? '…' : followingIds.includes(viewedProfile.id) ? 'Following' : 'Follow'}</button><div className="profile-post-grid">{posts.filter((post) => post.user_id === viewedProfile.id).map((post) => <article className="profile-post-tile" key={post.id}>{post.image_url ? (post.image_url.match(/\\.(mp4|webm|mov)(\\?|$)/i) ? <video src={post.image_url} controls playsInline /> : <img src={post.image_url} alt="Post" loading="lazy" />) : <p>{post.text}</p>}</article>)}</div>{!posts.some((post) => post.user_id === viewedProfile.id) && <p className="muted">No posts yet.</p>}{followError && <p className="post-alert" role="alert">{followError}</p>}</section> : <section className="placeholder auth-panel">
         <div className="bigicon">◉</div><h2>{session ? (myProfile?.display_name || myProfile?.username || 'Your profile') : 'Join VYBORA'}</h2>
-        {session ? <><p className="profile-handle">{myProfile?.username ? '@' + myProfile.username : session.user.email}</p><div className="follow-stats"><div><b>{posts.filter((post) => post.handle === (myProfile?.username ? '@' + myProfile.username : '')).length}</b><small>Posts</small></div><div><b>{followStats.followers}</b><small>Followers</small></div><div><b>{followStats.following}</b><small>Following</small></div></div><p>Build your VYBORA community. Follow people whose moments you want to see.</p><div className="people-heading"><h3>Discover people</h3><span>{profiles.length} members</span></div><input className="explore-input" value={profileSearch} onChange={(e) => setProfileSearch(e.target.value)} placeholder="Search people by name or username…" />{followError && <p className="post-alert" role="alert">{followError}</p>}<div className="people-list">{profiles.filter((profile) => !profileSearch.trim() || [profile.username, profile.display_name].some((value) => (value || '').toLowerCase().includes(profileSearch.trim().toLowerCase()))).map((profile) => <div className="people-row" key={profile.id}><div className="people-avatar">{(profile.display_name || profile.username || 'V')[0].toUpperCase()}</div><div className="people-copy"><b>{profile.display_name || profile.username || 'VYBORA member'}</b><small>{profile.username ? '@' + profile.username : 'VYBORA member'}</small></div><button type="button" disabled={followBusyId === profile.id} className={followingIds.includes(profile.id) ? 'following-button' : 'follow-button'} onClick={() => toggleFollow(profile)}>{followBusyId === profile.id ? '…' : followingIds.includes(profile.id) ? 'Following' : 'Follow'}</button></div>)}{!profiles.length && <p className="muted">More people will appear here as they join VYBORA.</p>}</div><button onClick={handleSignOut}>Sign out</button></> : <>
+        {session ? <><p className="profile-handle">{myProfile?.username ? '@' + myProfile.username : session.user.email}</p><div className="follow-stats"><div><b>{posts.filter((post) => post.handle === (myProfile?.username ? '@' + myProfile.username : '')).length}</b><small>Posts</small></div><div><b>{followStats.followers}</b><small>Followers</small></div><div><b>{followStats.following}</b><small>Following</small></div></div><p>Build your VYBORA community. Follow people whose moments you want to see.</p><div className="people-heading"><h3>Discover people</h3><span>{profiles.length} members</span></div><input className="explore-input" value={profileSearch} onChange={(e) => setProfileSearch(e.target.value)} placeholder="Search people by name or username…" />{followError && <p className="post-alert" role="alert">{followError}</p>}<div className="people-list">{profiles.filter((profile) => !profileSearch.trim() || [profile.username, profile.display_name].some((value) => (value || '').toLowerCase().includes(profileSearch.trim().toLowerCase()))).map((profile) => <div className="people-row" key={profile.id}><button type="button" className="people-open-profile" onClick={() => openUserProfile(profile)}><div className="people-avatar">{(profile.display_name || profile.username || 'V')[0].toUpperCase()}</div><span className="people-copy"><b>{profile.display_name || profile.username || 'VYBORA member'}</b><small>{profile.username ? '@' + profile.username : 'VYBORA member'}</small></span></button><button type="button" disabled={followBusyId === profile.id} className={followingIds.includes(profile.id) ? 'following-button' : 'follow-button'} onClick={() => toggleFollow(profile)}>{followBusyId === profile.id ? '…' : followingIds.includes(profile.id) ? 'Following' : 'Follow'}</button></div>)}{!profiles.length && <p className="muted">More people will appear here as they join VYBORA.</p>}</div><button onClick={handleSignOut}>Sign out</button></> : <>
           <p>Create an account or sign in to message your people.</p>
           <div className="auth-tabs">
             <button className={authMode === 'signin' ? 'selected' : ''} onClick={() => { setAuthMode('signin'); setAuthMessage(''); }}>Sign in</button>
