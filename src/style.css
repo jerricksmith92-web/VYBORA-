@@ -190,3 +190,8 @@ nav:not(.mobile-nav) button>svg{flex-shrink:0;opacity:.95}
 .mobile-nav button svg{filter:drop-shadow(0 1px 2px #0003)}
 .mobile-nav button.active svg{color:var(--vy-accent)}
 @media(max-width:560px){.mobile-nav button:nth-child(3)>span{width:34px;height:30px;border-radius:11px;background:var(--vy-accent);color:#171a12}.mobile-nav button:nth-child(3)>span svg{color:#171a12}.mobile-nav button.active:nth-child(3)>span svg{color:#171a12}}
+
+/* Crisp modern outline icon treatment */
+nav svg,.postactions svg,.mobile-nav svg{fill:none;stroke-linecap:round;stroke-linejoin:round;}
+nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
+.postactions button svg{vertical-align:-3px;}
