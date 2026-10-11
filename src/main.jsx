@@ -59,6 +59,8 @@ function App() {
   const [notifications, setNotifications] = React.useState([]);
   const [notificationError, setNotificationError] = React.useState('');
   const [notificationLoading, setNotificationLoading] = React.useState(false);
+  const [pushBusy, setPushBusy] = React.useState(false);
+  const [pushStatus, setPushStatus] = React.useState('');
   const [highlightedPostId, setHighlightedPostId] = React.useState('');
   const [myProfile, setMyProfile] = React.useState(null);
   const [followStats, setFollowStats] = React.useState({ followers: 0, following: 0 });
@@ -273,6 +275,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     const result = wasLiked
       ? await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', session.user.id)
       : await supabase.from('post_likes').insert({ post_id: post.id, user_id: session.user.id });
+    if (!result.error && !wasLiked) requestServerPush('like', post.id);
     if (result.error) {
       setLiked((current) => ({ ...current, [post.id]: wasLiked }));
       setPosts((current) => current.map((item) => item.id === post.id ? { ...item, likes: Math.max(0, item.likes + (wasLiked ? 1 : -1)) } : item));
@@ -320,6 +323,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         .select('id,post_id,user_id,content,created_at')
         .single();
       if (error) throw error;
+      requestServerPush('comment', post.id);
       const profile = await supabase.from('profiles').select('username,display_name').eq('id', session.user.id).maybeSingle();
       const user = profile.data?.display_name || cleanUsername(profile.data?.username) || 'VYBORA member';
       setCommentsByPost((current) => ({ ...current, [post.id]: [...(current[post.id] || []), { ...data, user }] }));
@@ -330,6 +334,66 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     } finally {
       setCommentBusy((current) => ({ ...current, [post.id]: false }));
     }
+  }
+
+  const VAPID_PUBLIC_KEY = 'BKD6Viue8RnpbF4TDs5YmnTW77tiOFb5TGK-oMOD0VOz9KpXD74Ax6BzUcJaVoGHrDYJyZ78mwkdwT1M86h43ac';
+
+  async function enablePushNotifications() {
+    if (!session?.user?.id || !supabase || pushBusy) return;
+    setPushBusy(true);
+    setPushStatus('');
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error('Push notifications are not supported in this browser. On iPhone, use iOS 16.4+ and open VYBORA from your Home Screen.');
+      }
+      if (!window.isSecureContext) throw new Error('Push notifications require a secure connection.');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') throw new Error('Notifications are blocked. Allow them in your device settings, then try again.');
+      const registration = await navigator.serviceWorker.register('/VYBORA-/sw.js', { scope: '/VYBORA-/' });
+      await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        const applicationServerKey = Uint8Array.from(atob(VAPID_PUBLIC_KEY.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(VAPID_PUBLIC_KEY.length / 4) * 4, '=')), (c) => c.charCodeAt(0));
+        subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+      }
+      const { error } = await supabase.from('push_subscriptions').upsert({
+        user_id: session.user.id,
+        endpoint: subscription.endpoint,
+        subscription: subscription.toJSON(),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'endpoint' });
+      if (error) throw error;
+      setPushStatus('Push notifications are enabled on this device. Keep VYBORA installed on your Home Screen.');
+    } catch (err) {
+      setPushStatus(err.message || 'Could not enable push notifications.');
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  async function disablePushNotifications() {
+    if (!supabase || !session?.user?.id || pushBusy) return;
+    setPushBusy(true);
+    setPushStatus('');
+    try {
+      const registration = await navigator.serviceWorker.getRegistration('/VYBORA-/');
+      const subscription = await registration?.pushManager?.getSubscription();
+      if (subscription) {
+        await supabase.from('push_subscriptions').delete().eq('user_id', session.user.id).eq('endpoint', subscription.endpoint);
+        await subscription.unsubscribe();
+      }
+      setPushStatus('Push notifications are turned off on this device.');
+    } catch (err) {
+      setPushStatus(err.message || 'Could not turn off push notifications.');
+    } finally { setPushBusy(false); }
+  }
+
+  async function requestServerPush(type, postId) {
+    if (!supabase || !session?.user?.id) return;
+    try {
+      const { error } = await supabase.functions.invoke('send-push', { body: { type, post_id: postId } });
+      if (error) console.warn('VYBORA push delivery could not be requested:', error.message);
+    } catch (err) { console.warn('VYBORA push delivery could not be requested:', err); }
   }
 
   async function loadNotifications() {
@@ -1045,6 +1109,8 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
       </section> : tab === 'Notifications' ? <section className="messages-panel notifications-panel">
         <div className="messages-heading"><div><p className="eyebrow">YOUR COMMUNITY</p><h2>Notifications</h2></div><button className="refresh-button" onClick={loadNotifications}>Refresh ↻</button></div>
         {!session ? <div className="chat-empty"><div className="bigicon">♡</div><h3>Sign in to see notifications</h3><p>Likes and comments on your posts will show up here.</p><button onClick={() => setTab('Profile')}>Go to sign in</button></div> : <>
+          <div className="push-optin"><div><b>Push notifications</b><small>Get alerts even when VYBORA is closed.</small></div><button type="button" disabled={pushBusy} onClick={enablePushNotifications}>{pushBusy ? 'Please wait…' : 'Enable'}</button><button type="button" className="push-disable" disabled={pushBusy} onClick={disablePushNotifications}>Turn off</button></div>
+          {pushStatus && <p className="push-status" role="status">{pushStatus}</p>}
           {notificationError && <p className="chat-alert" role="alert">{notificationError}</p>}
           {notificationLoading && !notifications.length ? <p className="search-hint">Loading your activity…</p> : notifications.length ? <div className="notifications-list">
             {notifications.map((notification) => <button key={notification.id} className={'notification-item ' + (notification.is_read ? '' : 'unread')} onClick={() => openNotification(notification)} disabled={!notification.post_id}>
