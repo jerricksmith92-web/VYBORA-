@@ -135,6 +135,22 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     if (tab === 'Profile' && session && supabase) loadFollowData();
   }, [tab, session?.user?.id]);
 
+  // Keep the unread-message total available even when the Messages screen is closed.
+  React.useEffect(() => {
+    if (!session?.user?.id || !supabase) return;
+    loadChats();
+  }, [session?.user?.id]);
+
+  React.useEffect(() => {
+    if (!supabase || !session?.user?.id) return undefined;
+    const channel = supabase.channel('vybora-unread-message-count-' + session.user.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        if (payload.new?.sender_id && payload.new.sender_id !== session.user.id) loadChats();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.user?.id]);
+
   React.useEffect(() => {
     if (!supabase || !session?.user?.id) return undefined;
     let active = true;
@@ -910,6 +926,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
   }
 
   const activeChat = chatList.find((chat) => chat.id === activeChatId);
+  const unreadMessageCount = chatList.reduce((total, chat) => total + (chat.unreadCount || 0), 0);
   const filteredProfiles = profiles.filter((profile) => {
     const needle = profileSearch.trim().toLowerCase();
     if (!needle) return false;
@@ -924,7 +941,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     </header>
     <nav>{['Home', 'Explore', 'Messages', 'Notifications', 'Profile'].map((t) =>
       <button className={tab === t ? 'active' : ''} onClick={() => setTab(t)} key={t}>
-        {({ Home: <House size={18} strokeWidth={2} />, Explore: <Compass size={18} strokeWidth={2} />, Messages: <MessageCircle size={18} strokeWidth={2} />, Notifications: <Bell size={18} strokeWidth={2} />, Profile: <UserRound size={18} strokeWidth={2} /> })[t]} <span>{t}</span>{t === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="nav-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}
+        {({ Home: <House size={18} strokeWidth={2} />, Explore: <Compass size={18} strokeWidth={2} />, Messages: <MessageCircle size={18} strokeWidth={2} />, Notifications: <Bell size={18} strokeWidth={2} />, Profile: <UserRound size={18} strokeWidth={2} /> })[t]} <span>{t}</span>{t === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="nav-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}{t === 'Messages' && unreadMessageCount > 0 && <i className="nav-unread-count">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</i>}
       </button>
     )}</nav>
     <main>
@@ -1063,7 +1080,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         </div>}<button onClick={() => setTab('Home')}>Back to home</button></section>}
       <footer>VYBORA © 2026 <span>Made for your world ✦</span></footer>
     </main>
-    <nav className="mobile-nav">{[['Home',<House size={21} strokeWidth={2} />],['Explore',<Compass size={21} strokeWidth={2} />],['Create',<PlusSquare size={22} strokeWidth={2} />],['Notifications',<Bell size={21} strokeWidth={2} />],['Messages',<MessageCircle size={21} strokeWidth={2} />],['Profile',<UserRound size={21} strokeWidth={2} />]].map(([name,icon]) => <button key={name} className={tab === name ? 'active' : ''} onClick={() => name === 'Create' ? (setTab('Home'), document.querySelector('.composebody textarea')?.focus()) : setTab(name)}><span>{icon}{name === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="mobile-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}</span><small>{name === 'Create' ? 'Post' : name}</small></button>)}</nav>
+    <nav className="mobile-nav">{[['Home',<House size={21} strokeWidth={2} />],['Explore',<Compass size={21} strokeWidth={2} />],['Create',<PlusSquare size={22} strokeWidth={2} />],['Notifications',<Bell size={21} strokeWidth={2} />],['Messages',<MessageCircle size={21} strokeWidth={2} />],['Profile',<UserRound size={21} strokeWidth={2} />]].map(([name,icon]) => <button key={name} className={tab === name ? 'active' : ''} onClick={() => name === 'Create' ? (setTab('Home'), document.querySelector('.composebody textarea')?.focus()) : setTab(name)}><span>{icon}{name === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="mobile-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}{name === 'Messages' && unreadMessageCount > 0 && <i className="mobile-unread-count">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</i>}</span><small>{name === 'Create' ? 'Post' : name}</small></button>)}</nav>
     {activeStory && <div className="story-overlay" role="dialog" aria-modal="true" aria-label="Story viewer" onClick={() => setActiveStory(null)}><div className="story-viewer" onClick={(e) => e.stopPropagation()}><div className="story-viewer-top"><span className="story-progress"><i /></span><button onClick={() => setActiveStory(null)} aria-label="Close story">×</button></div><div className="story-viewer-content"><span className="story-viewer-avatar">{activeStory.initial}</span><p>{activeStory.own ? 'Your moment starts here.' : activeStory.name + '’s story'}</p><small>{activeStory.own ? 'Share the little things as they happen.' : 'A moment shared with the VYBORA community ✦'}</small>{activeStory.own && <button onClick={() => { setActiveStory(null); setTab('Home'); document.querySelector('.composebody textarea')?.focus(); }}>Create a post ↗</button>}</div></div></div>}
   </div>;
 }
