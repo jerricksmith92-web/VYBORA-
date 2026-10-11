@@ -1,0 +1,14 @@
+{
+  "name": "VYBORA — Your world, your people",
+  "short_name": "VYBORA",
+  "start_url": "/VYBORA-/",
+  "scope": "/VYBORA-/",
+  "display": "standalone",
+  "background_color": "#0b0b10",
+  "theme_color": "#101014",
+  "description": "VYBORA — your people, your moments.",
+  "icons": [
+    { "src": "/VYBORA-/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/VYBORA-/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
