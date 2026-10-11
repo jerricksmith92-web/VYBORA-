@@ -7,9 +7,7 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'VYBORA';
   const options = {
     body: payload.body || 'You have a new update.',
-    icon: APP_BASE + 'icons/icon-192.png',
-    badge: APP_BASE + 'icons/icon-192.png',
-    data: { url: payload.url || APP_BASE },
+        data: { url: payload.url || APP_BASE },
     tag: payload.tag || 'vybora-notification',
     renotify: false
   };
