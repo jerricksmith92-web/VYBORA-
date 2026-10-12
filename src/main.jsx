@@ -1188,11 +1188,55 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     return recipients.length > 0 && recipients.every((id) => (message.readByIds || []).includes(id));
   }
 
+  // Keep the newest message visible whenever a conversation opens or updates.
   React.useEffect(() => {
     const list = messageListRef.current;
     if (!list) return;
-    list.scrollTop = list.scrollHeight;
+    let secondFrame = 0;
+    const scrollToLatest = () => {
+      const current = messageListRef.current;
+      if (current) current.scrollTo({ top: current.scrollHeight, behavior: 'auto' });
+    };
+    const firstFrame = requestAnimationFrame(() => {
+      scrollToLatest();
+      secondFrame = requestAnimationFrame(scrollToLatest);
+    });
+    const settleTimer = window.setTimeout(scrollToLatest, 180);
+    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(scrollToLatest) : null;
+    resizeObserver?.observe(list);
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame) cancelAnimationFrame(secondFrame);
+      window.clearTimeout(settleTimer);
+      resizeObserver?.disconnect();
+    };
   }, [chatMessages, activeChatId]);
+
+  // iPhone Safari shrinks the visual viewport when the keyboard opens.
+  // Resize the app shell to that visible area so the composer stays above the keyboard.
+  React.useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const syncVisibleHeight = () => {
+      document.documentElement.style.setProperty('--vybora-visible-height', Math.round(viewport.height) + 'px');
+      if (document.activeElement?.closest?.('.message-composer')) {
+        requestAnimationFrame(() => {
+          const list = messageListRef.current;
+          if (list) list.scrollTop = list.scrollHeight;
+        });
+      }
+    };
+    syncVisibleHeight();
+    viewport.addEventListener('resize', syncVisibleHeight);
+    viewport.addEventListener('scroll', syncVisibleHeight);
+    window.addEventListener('orientationchange', syncVisibleHeight);
+    return () => {
+      viewport.removeEventListener('resize', syncVisibleHeight);
+      viewport.removeEventListener('scroll', syncVisibleHeight);
+      window.removeEventListener('orientationchange', syncVisibleHeight);
+      document.documentElement.style.removeProperty('--vybora-visible-height');
+    };
+  }, []);
 
   function handleMessageDraftChange(value) {
     setMessageDraft(value);
