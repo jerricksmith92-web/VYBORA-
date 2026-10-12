@@ -1318,12 +1318,12 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
       </button>
     )}</nav>
     <main>
-      <section className="welcome">
+      {tab === 'Home' && <section className="welcome">
         <p className="eyebrow">YOUR SPACE. YOUR PEOPLE.</p>
         <h1>Stay close to<br /><em>your world.</em></h1>
         <p className="muted">Share your moments. Find your people. Be yourself.</p>
         <div className="pills"><span>✦ Your community</span><span>◉ Real moments</span></div>
-      </section>
+      </section>}
 
       {tab === 'Reels' ? <ReelsPanel session={session} /> : tab === 'Home' ? <>
         <section className="stories">
