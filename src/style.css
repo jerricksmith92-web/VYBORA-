@@ -857,3 +857,22 @@ nav{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .explore-video-sound-toggle{position:absolute;z-index:5;top:12px;right:12px;display:flex;align-items:center;gap:6px;border:1px solid #ffffff66;border-radius:22px;background:#09070bd9;color:#fff;padding:8px 11px;font-size:12px;font-weight:750;backdrop-filter:blur(8px);cursor:pointer;box-shadow:0 2px 10px #0005}
 .explore-video-sound-toggle svg{flex-shrink:0}
 @media(max-width:480px){.explore-video-sound-toggle{top:9px;right:9px;padding:7px 9px;font-size:11px}}
+
+
+/* iPhone Safari: prevent automatic page zoom when focusing form fields.
+   Keep every editable control at 16px or larger without changing the layout. */
+input,
+textarea,
+select,
+.auth-form input,
+.new-chat input,
+.message-composer input,
+.explore-input,
+.reel-comments-sheet input {
+  font-size: 16px !important;
+}
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
