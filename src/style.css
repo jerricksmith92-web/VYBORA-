@@ -601,3 +601,13 @@ nav{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
  .feed>.sectionhead h2{font-size:19px!important}
  .post{border-radius:19px!important}
 }
+
+
+/* Tap-through story navigation */
+.story-viewer-media{position:relative;overflow:hidden}
+.story-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:38px;height:54px;display:grid;place-items:center;border:1px solid #ffffff45;border-radius:13px;background:#08071499!important;color:#fff!important;font-size:38px!important;line-height:1;padding:0 0 5px!important;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);cursor:pointer}
+.story-nav-prev{left:10px}
+.story-nav-next{right:10px}
+.story-nav:disabled{opacity:.22;cursor:default}
+.story-nav-progress{position:absolute;top:10px;right:12px;z-index:5;padding:5px 9px;border-radius:99px;background:#070711a8;color:#fff;font-size:11px;backdrop-filter:blur(8px)}
+@media(max-width:560px){.story-nav{width:34px;height:48px;font-size:33px!important}.story-nav-prev{left:7px}.story-nav-next{right:7px}}
