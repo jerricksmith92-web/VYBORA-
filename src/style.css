@@ -611,3 +611,36 @@ nav{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .story-nav:disabled{opacity:.22;cursor:default}
 .story-nav-progress{position:absolute;top:10px;right:12px;z-index:5;padding:5px 9px;border-radius:99px;background:#070711a8;color:#fff;font-size:11px;backdrop-filter:blur(8px)}
 @media(max-width:560px){.story-nav{width:34px;height:48px;font-size:33px!important}.story-nav-prev{left:7px}.story-nav-next{right:7px}}
+
+
+/* Full-screen, Instagram-inspired story viewer */
+.story-overlay{position:fixed!important;inset:0!important;z-index:100!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important;background:#050505!important;backdrop-filter:none!important}
+.story-viewer.story-instagram{width:min(100vw,430px)!important;height:100dvh!important;max-height:100dvh!important;min-height:0!important;border:0!important;border-radius:0!important;overflow:hidden!important;background:#080808!important;position:relative!important;display:flex!important;flex-direction:column!important}
+.story-progress-row{position:absolute;z-index:8;top:calc(env(safe-area-inset-top) + 8px);left:9px;right:9px;display:flex;gap:3px;height:3px}
+.story-progress-track{height:3px;flex:1;min-width:0;background:#ffffff60;border-radius:5px;overflow:hidden}
+.story-progress-track i{display:block;width:0;height:100%;background:#fff}
+.story-progress-track i.done{width:100%}
+.story-progress-track i.current{width:100%;background:linear-gradient(90deg,#fff,#ffffffb0)}
+.story-viewer-top.story-instagram-header{position:absolute;z-index:9;top:calc(env(safe-area-inset-top) + 17px);left:0;right:0;display:flex;justify-content:flex-start;align-items:center;gap:9px;padding:10px 13px;background:linear-gradient(#0005,transparent)}
+.story-avatar-small{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;overflow:hidden;border-radius:50%;border:1.5px solid #fff;color:#fff;font-weight:700;background:linear-gradient(135deg,#ee2a7b,#7c3cff)}
+.story-avatar-small img{width:100%;height:100%;object-fit:cover}
+.story-viewer-top.story-instagram-header .story-viewer-owner{font-size:13px;font-weight:650;color:#fff;text-shadow:0 1px 5px #000}
+.story-viewer-owner small{font-size:11px;font-weight:400;color:#eee}
+.story-viewer-top.story-instagram-header>button{margin-left:auto;width:38px;height:38px;background:transparent;border:0;color:white;font-size:32px}
+.story-viewer-media{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#111}
+.story-viewer-media>img,.story-viewer-media>video{display:block;width:100%;height:100%;object-fit:contain;background:#090909;border:0;border-radius:0;margin:0}
+.story-viewer-caption{position:absolute;z-index:4;left:18px;right:18px;bottom:55px;margin:0;padding:12px 10px;text-align:center;color:#fff;font-size:16px;line-height:1.45;text-shadow:0 1px 5px #000;background:linear-gradient(transparent,#0003);pointer-events:none}
+.story-tap-zone{position:absolute;top:65px;bottom:8px;width:34%;border:0!important;border-radius:0!important;background:transparent!important;padding:0!important;z-index:5;box-shadow:none!important}
+.story-tap-left{left:0}.story-tap-right{right:0}
+.story-tap-zone:disabled{pointer-events:none}
+.story-instagram-footer{display:flex;align-items:center;gap:15px;padding:10px 14px calc(12px + env(safe-area-inset-bottom));background:#080808;color:#fff;min-height:65px}
+.story-instagram-footer>span:first-child{flex:1;min-width:0;border:1px solid #b9b9b9;border-radius:25px;padding:12px 15px;font-size:13px;color:#eee}
+.story-reaction-heart{font-size:30px;line-height:1}.story-reaction-send{font-size:23px}
+.story-viewer-bottom{position:absolute!important;bottom:calc(70px + env(safe-area-inset-bottom));left:8px;right:8px;z-index:10;display:flex;gap:8px;align-items:center;justify-content:flex-start;padding:0!important;background:transparent!important;border:0!important;pointer-events:none}
+.story-viewer-bottom>*{pointer-events:auto}
+.story-viewer-bottom>span{color:white!important;font-size:11px;text-shadow:0 1px 5px #000}
+.story-viewers summary,.story-delete-button{font-size:11px!important}
+@media(min-width:600px){
+ .story-overlay{padding:18px!important;background:#050505eF!important;backdrop-filter:blur(8px)!important}
+ .story-viewer.story-instagram{height:min(92dvh,850px)!important;max-height:850px!important;border-radius:12px!important;border:1px solid #303030!important}
+}
