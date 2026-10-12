@@ -336,7 +336,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     }
   }
 
-  const VAPID_PUBLIC_KEY = 'BKD6Viue8RnpbF4TDs5YmnTW77tiOFb5TGK-oMOD0VOz9KpXD74Ax6BzUcJaVoGHrDYJyZ78mwkdwT1M86h43ac';
+  const VAPID_PUBLIC_KEY = 'BL7UZMc3ZILck561AV-WrDgEzicIFy_HWB_Qig4B6ZJrh0Li4TC4-7EmKAXrtJzsx2Mg6vm98FJHVM63Hm6_KCo';
 
   async function enablePushNotifications() {
     if (!session?.user?.id || !supabase || pushBusy) return;
