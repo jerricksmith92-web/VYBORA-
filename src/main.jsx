@@ -1459,7 +1459,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
                   <input value={messageDraft} onChange={(e) => handleMessageDraftChange(e.target.value)} maxLength={5000} placeholder="Write a message…" aria-label="Write a message" />
                   <button type="submit" disabled={sendingMessage || (!messageDraft.trim() && !messageImage)}>{sendingMessage ? 'Sending…' : <><Send size={16} strokeWidth={2.2} /> Send</>}</button>
                 </form>
-              </> : <div className="chat-empty"><div className="bigicon">✉</div><h3>Your conversations</h3><p>Choose a chat or search for a person above to begin.</p></div>}
+              </> : }
             </section>
           </div>
         </>}
