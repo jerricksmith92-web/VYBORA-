@@ -291,9 +291,11 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     return () => { cancelled = true; };
   }, [session?.user?.id]);
 
+  // Preload notifications as soon as the signed-in session is ready, so
+  // opening the Notifications tab does not have to wait for the first fetch.
   React.useEffect(() => {
-    if (tab === 'Notifications' && session?.user?.id && supabase) loadNotifications();
-  }, [tab, session?.user?.id]);
+    if (session?.user?.id && supabase) loadNotifications();
+  }, [session?.user?.id]);
 
   React.useEffect(() => {
     if (!supabase || !session?.user?.id) return undefined;
