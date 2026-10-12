@@ -184,8 +184,10 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
   }, [session?.user?.id]);
   
   React.useEffect(() => {
-    if (session?.user?.id && supabase) loadStories();
-    else setStories([]);
+    if (!session?.user?.id || !supabase) { setStories([]); return undefined; }
+    loadStories();
+    const timer = setInterval(loadStories, 60000);
+    return () => clearInterval(timer);
   }, [session?.user?.id]);
 
   React.useEffect(() => {
