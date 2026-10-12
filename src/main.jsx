@@ -75,9 +75,12 @@ function ReelsPanel({ session }) {
       entries.forEach((entry) => {
         const video = entry.target;
         if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+          video.preload = 'auto';
           video.play().catch(() => {});
         } else {
           video.pause();
+          // Avoid downloading every Reel before the user reaches it.
+          video.preload = 'none';
         }
       });
     }, { threshold: [0, 0.6, 1] });
@@ -150,7 +153,7 @@ function ReelsPanel({ session }) {
     {busy && !reels.length && <p className="reels-muted">Loading Reels…</p>}
     {!busy && !reels.length && !error && <div className="reels-empty"><span>▶</span><h3>Your next favourite video goes here.</h3><p>Be the first to share a Reel with the VYBORA community.</p></div>}
     <div className="reels-feed">{reels.map((reel,index)=><article className="reel-card" key={reel.id}>
-      <video className="reel-video" src={reel.video_url} autoPlay muted={!soundOn} playsInline preload={index===0?"auto":"metadata"} loop controls={false} onClick={e=>{const v=e.currentTarget;if(v.paused)v.play().catch(()=>{});else v.pause();}} onLoadedData={e=>{if(e.currentTarget.closest(".reel-card")?.getBoundingClientRect().top < window.innerHeight * 0.65)e.currentTarget.play().catch(()=>{});}} />
+      <video className="reel-video" src={reel.video_url} autoPlay muted={!soundOn} playsInline preload={index===0?"auto":"none"} loop controls={false} onClick={e=>{const v=e.currentTarget;if(v.paused)v.play().catch(()=>{});else v.pause();}} onLoadedData={e=>{if(e.currentTarget.closest(".reel-card")?.getBoundingClientRect().top < window.innerHeight * 0.65)e.currentTarget.play().catch(()=>{});}} />
       <button type="button" className="reel-sound-toggle" aria-label={soundOn?"Mute Reel sound":"Turn Reel sound on"} onClick={()=>setSoundOn(current=>!current)}>{soundOn?<Volume2 size={22}/>:<VolumeX size={22}/>}<span>{soundOn?"Sound on":"Sound off"}</span></button>
       <div className="reel-overlay-bottom">
         <div className="reel-author"><span className="reel-avatar">{reel.profile?.avatar_url?<img src={reel.profile.avatar_url} alt="" />:(reel.profile?.display_name||cleanUsername(reel.profile?.username)||'V')[0].toUpperCase()}</span><span><b>{reel.profile?.display_name||cleanUsername(reel.profile?.username)||'VYBORA member'}</b><small>@{cleanUsername(reel.profile?.username)||'member'}</small></span></div>
