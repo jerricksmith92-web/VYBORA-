@@ -128,13 +128,17 @@ function ReelsPanel({ session }) {
     {busy && !reels.length && <p className="reels-muted">Loading Reels…</p>}
     {!busy && !reels.length && !error && <div className="reels-empty"><span>▶</span><h3>Your next favourite video goes here.</h3><p>Be the first to share a Reel with the VYBORA community.</p></div>}
     <div className="reels-feed">{reels.map(reel=><article className="reel-card" key={reel.id}>
-      <video className="reel-video" src={reel.video_url} controls playsInline preload="metadata" loop />
-      <div className="reel-details">
+      <video className="reel-video" src={reel.video_url} autoPlay muted playsInline preload="auto" loop controls={false} onClick={e=>{const v=e.currentTarget;if(v.paused)v.play().catch(()=>{});else v.pause();}} onLoadedData={e=>e.currentTarget.play().catch(()=>{})} />
+      <div className="reel-overlay-bottom">
         <div className="reel-author"><span className="reel-avatar">{reel.profile?.avatar_url?<img src={reel.profile.avatar_url} alt="" />:(reel.profile?.display_name||cleanUsername(reel.profile?.username)||'V')[0].toUpperCase()}</span><span><b>{reel.profile?.display_name||cleanUsername(reel.profile?.username)||'VYBORA member'}</b><small>@{cleanUsername(reel.profile?.username)||'member'}</small></span></div>
         {reel.caption && <p className="reel-caption">{reel.caption}</p>}
-        <div className="reel-actions"><button type="button" className={reel.liked?'is-liked':''} onClick={()=>toggleReelLike(reel)}><Heart size={19} fill={reel.liked?'currentColor':'none'}/> {reel.likes}</button><button type="button" onClick={()=>setOpenComments(current=>({...current,[reel.id]:!current[reel.id]}))}><MessageSquare size={19}/> {reel.comments.length}</button><button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(reel.video_url);setNotice('Reel link copied!');}catch{setNotice('Use your browser share option to share this Reel.');}}}><Share2 size={19}/> Share</button></div>
-        {openComments[reel.id] && <div className="reel-comments">{reel.comments.map(c=><p key={c.id}><b>{c.profile?.display_name||cleanUsername(c.profile?.username)||'Member'}</b> {c.content}</p>)}<form onSubmit={e=>submitReelComment(e,reel)}><input value={commentDrafts[reel.id]||''} onChange={e=>setCommentDrafts(current=>({...current,[reel.id]:e.target.value}))} maxLength={500} placeholder="Add a comment…" /><button type="submit" disabled={!(commentDrafts[reel.id]||'').trim()}>Send</button></form></div>}
       </div>
+      <div className="reel-action-rail">
+        <button type="button" className={reel.liked?'is-liked':''} onClick={()=>toggleReelLike(reel)}><Heart size={28} fill={reel.liked?'currentColor':'white'}/><b>{reel.likes}</b></button>
+        <button type="button" onClick={()=>setOpenComments(current=>({...current,[reel.id]:!current[reel.id]}))}><MessageSquare size={27}/><b>{reel.comments.length}</b></button>
+        <button type="button" onClick={async()=>{try{if(navigator.share)await navigator.share({title:'VYBORA Reel',text:reel.caption||'Watch this Reel on VYBORA',url:reel.video_url});else{await navigator.clipboard.writeText(reel.video_url);setNotice('Reel link copied!');}}catch(e){if(e.name!=='AbortError')setNotice('Unable to share this Reel on this device.');}}}><Share2 size={26}/><b>Share</b></button>
+      </div>
+      {openComments[reel.id] && <div className="reel-comments-sheet"><div className="reel-comments-head"><b>Comments · {reel.comments.length}</b><button type="button" onClick={()=>setOpenComments(current=>({...current,[reel.id]:false}))}>✕</button></div><div className="reel-comments-list">{reel.comments.map(c=><p key={c.id}><b>{c.profile?.display_name||cleanUsername(c.profile?.username)||'Member'}</b> {c.content}</p>)}</div><form onSubmit={e=>submitReelComment(e,reel)}><input value={commentDrafts[reel.id]||''} onChange={e=>setCommentDrafts(current=>({...current,[reel.id]:e.target.value}))} maxLength={500} placeholder="Add a comment…" /><button type="submit" disabled={!(commentDrafts[reel.id]||'').trim()}>Post</button></form></div>}
     </article>)}</div>
   </section>;
 }
