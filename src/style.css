@@ -729,3 +729,6 @@ nav{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
   .postactions button{gap:4px;padding:7px 4px!important;font-size:10px!important}
   .postactions button svg{width:16px;height:16px}
 }
+
+/* Keep the profile destination icon contained inside the mobile navigation. */
+@media(max-width:560px){.mobile-nav.instagram-bottom-nav button:last-child>span{width:29px;height:29px;display:grid;place-items:center;overflow:hidden;border-radius:50%;flex:0 0 29px}.mobile-nav.instagram-bottom-nav .bottom-profile-photo{width:25px!important;height:25px!important;max-width:25px;max-height:25px;min-width:25px;min-height:25px;object-fit:cover;border-radius:50%;display:block;position:static!important;transform:none!important;box-shadow:none!important}.mobile-nav.instagram-bottom-nav button:last-child{min-width:44px;min-height:40px;padding:4px 8px;overflow:hidden}}
