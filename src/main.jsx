@@ -1473,8 +1473,11 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
       <div className="story-viewer" onClick={(event) => event.stopPropagation()}>
         <div className="story-viewer-top"><span className="story-viewer-owner">{activeStory.profile?.display_name || cleanUsername(activeStory.profile?.username) || 'VYBORA member'}</span><button type="button" onClick={() => setActiveStory(null)} aria-label="Close story">×</button></div>
         <div className="story-viewer-media">
-          {activeStory.media_type === 'video' ? <video src={activeStory.media_url} controls autoPlay playsInline /> : <img src={activeStory.media_url} alt="Story" />}
+          {activeStory.media_type === 'video' ? <video key={activeStory.id} src={activeStory.media_url} controls autoPlay playsInline /> : <img key={activeStory.id} src={activeStory.media_url} alt="Story" />}
           {activeStory.caption && <p className="story-viewer-caption">{activeStory.caption}</p>}
+          <button type="button" className="story-nav story-nav-prev" aria-label="Previous story" disabled={stories.findIndex(item => item.id === activeStory.id) <= 0} onClick={() => { const i = stories.findIndex(item => item.id === activeStory.id); if (i > 0) openStory(stories[i - 1]); }}>‹</button>
+          <button type="button" className="story-nav story-nav-next" aria-label="Next story" disabled={stories.findIndex(item => item.id === activeStory.id) < 0 || stories.findIndex(item => item.id === activeStory.id) >= stories.length - 1} onClick={() => { const i = stories.findIndex(item => item.id === activeStory.id); if (i >= 0 && i < stories.length - 1) openStory(stories[i + 1]); }}>›</button>
+          <div className="story-nav-progress">{Math.max(0, stories.findIndex(item => item.id === activeStory.id) + 1)} / {stories.length}</div>
         </div>
         <div className="story-viewer-bottom">
           <span>{activeStory.isOwn ? (activeStory.views?.length || 0) + ' views' : 'Shared with the VYBORA community'}</span>
