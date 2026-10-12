@@ -55,6 +55,13 @@ function App() {
   const [profiles, setProfiles] = React.useState([]);
   const [startingChatId, setStartingChatId] = React.useState('');
   const [activeStory, setActiveStory] = React.useState(null);
+  const [stories, setStories] = React.useState([]);
+  const [storyFile, setStoryFile] = React.useState(null);
+  const [storyCaption, setStoryCaption] = React.useState('');
+  const [storyBusy, setStoryBusy] = React.useState(false);
+  const [storyError, setStoryError] = React.useState('');
+  const [storyNotice, setStoryNotice] = React.useState('');
+  const storyFileRef = React.useRef(null);
   const [exploreSearch, setExploreSearch] = React.useState('');
   const [notifications, setNotifications] = React.useState([]);
   const [notificationError, setNotificationError] = React.useState('');
@@ -174,6 +181,11 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
   React.useEffect(() => {
     if (session?.user?.id && supabase) loadPosts();
     else setPosts([]);
+  }, [session?.user?.id]);
+  
+  React.useEffect(() => {
+    if (session?.user?.id && supabase) loadStories();
+    else setStories([]);
   }, [session?.user?.id]);
 
   React.useEffect(() => {
@@ -595,6 +607,114 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     setSession(null);
     setAuthMessage('You have signed out.');
     setTab('Profile');
+  }
+
+  async function loadStories() {
+    if (!supabase || !session?.user?.id) return;
+    const { data, error } = await supabase.from('stories')
+      .select('id,user_id,media_url,media_type,caption,created_at,expires_at')
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) {
+      console.warn('VYBORA stories could not load:', error.message);
+      setStoryError('Stories could not load: ' + error.message);
+      return;
+    }
+    const rows = data || [];
+    if (!rows.length) { setStories([]); return; }
+    const userIds = [...new Set(rows.map((story) => story.user_id))];
+    const storyIds = rows.map((story) => story.id);
+    const [{ data: people, error: peopleError }, { data: viewRows, error: viewError }] = await Promise.all([
+      supabase.from('profiles').select('id,username,display_name,avatar_url').in('id', userIds),
+      supabase.from('story_views').select('story_id,viewer_id,viewed_at').in('story_id', storyIds)
+    ]);
+    if (peopleError) console.warn('VYBORA story profiles could not load:', peopleError.message);
+    if (viewError) console.warn('VYBORA story views could not load:', viewError.message);
+    const peopleById = Object.fromEntries((people || []).map((person) => [person.id, person]));
+    const viewsByStory = {};
+    (viewRows || []).forEach((view) => {
+      if (!viewsByStory[view.story_id]) viewsByStory[view.story_id] = [];
+      viewsByStory[view.story_id].push(view);
+    });
+    setStories(rows.map((story) => ({
+      ...story,
+      profile: peopleById[story.user_id] || {},
+      views: viewsByStory[story.id] || []
+    })));
+    setStoryError('');
+  }
+
+  async function publishStory(event) {
+    event.preventDefault();
+    if (!supabase || !session?.user?.id || !storyFile || storyBusy) return;
+    const isVideo = storyFile.type.startsWith('video/');
+    if (!isVideo && !storyFile.type.startsWith('image/')) {
+      setStoryError('Choose a photo or video for your story.');
+      return;
+    }
+    const maxBytes = isVideo ? 20 * 1024 * 1024 : 8 * 1024 * 1024;
+    if (storyFile.size > maxBytes) {
+      setStoryError(isVideo ? 'Story videos must be 20 MB or smaller.' : 'Story photos must be 8 MB or smaller.');
+      return;
+    }
+    setStoryBusy(true);
+    setStoryError('');
+    setStoryNotice('');
+    try {
+      const rawExtension = (storyFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
+      const extension = rawExtension.replace(/[^a-z0-9]/g, '') || (isVideo ? 'mp4' : 'jpg');
+      const path = session.user.id + '/stories/' + crypto.randomUUID() + '.' + extension;
+      const { error: uploadError } = await supabase.storage.from('post-media').upload(path, storyFile, {
+        cacheControl: '3600', upsert: false, contentType: storyFile.type
+      });
+      if (uploadError) throw uploadError;
+      const mediaUrl = supabase.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+      const createdAt = new Date();
+      const { error: insertError } = await supabase.from('stories').insert({
+        user_id: session.user.id,
+        media_url: mediaUrl,
+        media_type: isVideo ? 'video' : 'image',
+        caption: storyCaption.trim().slice(0, 180),
+        created_at: createdAt.toISOString(),
+        expires_at: new Date(createdAt.getTime() + 24 * 60 * 60 * 1000).toISOString()
+      });
+      if (insertError) throw insertError;
+      setStoryFile(null);
+      setStoryCaption('');
+      if (storyFileRef.current) storyFileRef.current.value = '';
+      setStoryNotice('Your story is live and will disappear after 24 hours.');
+      await loadStories();
+    } catch (err) {
+      setStoryError(err.message || 'Could not publish your story.');
+    } finally {
+      setStoryBusy(false);
+    }
+  }
+
+  async function openStory(story) {
+    if (!story) return;
+    const isOwn = story.user_id === session?.user?.id;
+    let views = story.views || [];
+    if (!isOwn && supabase && session?.user?.id) {
+      const { error } = await supabase.from('story_views').insert({ story_id: story.id, viewer_id: session.user.id });
+      if (error && error.code !== '23505') console.warn('VYBORA could not record story view:', error.message);
+      const { data: freshViews, error: viewsError } = await supabase.from('story_views')
+        .select('story_id,viewer_id,viewed_at').eq('story_id', story.id);
+      if (!viewsError) {
+        views = freshViews || [];
+        setStories((current) => current.map((item) => item.id === story.id ? { ...item, views } : item));
+      }
+    }
+    let viewerProfiles = [];
+    if (isOwn && views.length) {
+      const viewerIds = [...new Set(views.map((view) => view.viewer_id).filter((id) => id !== session?.user?.id))];
+      if (viewerIds.length) {
+        const { data } = await supabase.from('profiles').select('id,username,display_name,avatar_url').in('id', viewerIds);
+        viewerProfiles = data || [];
+      }
+    }
+    setActiveStory({ ...story, isOwn, views, viewerProfiles });
   }
 
   async function loadChats() {
@@ -1021,12 +1141,39 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
 
       {tab === 'Home' ? <>
         <section className="stories">
-          <div className="sectionhead"><h2>Stories</h2><span>See all →</span></div>
-          <div className="storyrow">{['You', 'Ama', 'Kojo', 'Abena', 'Kwame'].map((n, i) =>
-            <button className="story" key={n} onClick={() => setActiveStory({ name: n, initial: ['＋', 'A', 'K', 'A', 'K'][i], own: i === 0 })}>
-              <div className={'ring ring' + i}><span>{['＋', 'A', 'K', 'A', 'K'][i]}</span></div><small>{n}</small>
-            </button>
-          )}</div>
+          <div className="sectionhead"><h2>Stories</h2><span>Disappear after 24 hours</span></div>
+          {!session ? <p className="story-muted">Sign in to share and view stories.</p> : <>
+            <form className="story-compose" onSubmit={publishStory}>
+              <input ref={storyFileRef} className="story-file-input" type="file" accept="image/*,video/*" onChange={(event) => { setStoryFile(event.target.files?.[0] || null); setStoryError(''); }} />
+              <button className="story-pick-button" type="button" onClick={() => storyFileRef.current?.click()}>{storyFile ? 'Media selected ✓' : '＋ Choose photo / video'}</button>
+              <input className="story-caption-input" value={storyCaption} onChange={(event) => setStoryCaption(event.target.value)} maxLength={180} placeholder="Add a caption (optional)" aria-label="Story caption" />
+              <button className="story-publish-button" type="submit" disabled={!storyFile || storyBusy}>{storyBusy ? 'Sharing…' : 'Share story'}</button>
+            </form>
+            {storyError && <p className="story-alert" role="alert">{storyError}</p>}
+            {storyNotice && <p className="story-notice" role="status">{storyNotice}</p>}
+            <div className="storyrow storyrow-live">
+              <button className="story" type="button" onClick={() => {
+                const ownStories = stories.filter((item) => item.user_id === session.user.id);
+                if (ownStories.length) openStory(ownStories[0]);
+                else storyFileRef.current?.click();
+              }}>
+                <div className="ring ring0"><span>{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : '＋'}</span></div>
+                <small>{cleanUsername(myProfile?.username) || 'Your story'}</small>
+              </button>
+              {stories.filter((item) => item.user_id !== session.user.id).reduce((groups, item) => {
+                if (!groups.some((group) => group.user_id === item.user_id)) groups.push(item);
+                return groups;
+              }, []).map((story) => {
+                const profile = story.profile || {};
+                const label = profile.display_name || cleanUsername(profile.username) || 'VYBORA member';
+                return <button className="story" type="button" key={story.user_id} onClick={() => openStory(story)}>
+                  <div className="ring"><span>{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : label[0]?.toUpperCase()}</span></div>
+                  <small>{label}</small>
+                </button>;
+              })}
+            </div>
+            {!stories.length && <p className="story-muted">No active stories yet. Share the first moment ✦</p>}
+          </>}
         </section>
         <section className="composer">
           <div className="avatar">{session?.user?.email?.[0]?.toUpperCase() || 'V'}</div>
@@ -1150,7 +1297,27 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
       <footer>VYBORA © 2026 <span>Made for your world ✦</span></footer>
     </main>
     <nav className="mobile-nav">{[['Home',<House size={21} strokeWidth={2} />],['Explore',<Compass size={21} strokeWidth={2} />],['Create',<PlusSquare size={22} strokeWidth={2} />],['Notifications',<Bell size={21} strokeWidth={2} />],['Messages',<MessageCircle size={21} strokeWidth={2} />],['Profile',<UserRound size={21} strokeWidth={2} />]].map(([name,icon]) => <button key={name} className={tab === name ? 'active' : ''} onClick={() => name === 'Create' ? (setTab('Home'), document.querySelector('.composebody textarea')?.focus()) : setTab(name)}><span>{icon}{name === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="mobile-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}{name === 'Messages' && unreadMessageCount > 0 && <i className="mobile-unread-count">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</i>}</span><small>{name === 'Create' ? 'Post' : name}</small></button>)}</nav>
-    {activeStory && <div className="story-overlay" role="dialog" aria-modal="true" aria-label="Story viewer" onClick={() => setActiveStory(null)}><div className="story-viewer" onClick={(e) => e.stopPropagation()}><div className="story-viewer-top"><span className="story-progress"><i /></span><button onClick={() => setActiveStory(null)} aria-label="Close story">×</button></div><div className="story-viewer-content"><span className="story-viewer-avatar">{activeStory.initial}</span><p>{activeStory.own ? 'Your moment starts here.' : activeStory.name + '’s story'}</p><small>{activeStory.own ? 'Share the little things as they happen.' : 'A moment shared with the VYBORA community ✦'}</small>{activeStory.own && <button onClick={() => { setActiveStory(null); setTab('Home'); document.querySelector('.composebody textarea')?.focus(); }}>Create a post ↗</button>}</div></div></div>}
+    {activeStory && <div className="story-overlay" role="dialog" aria-modal="true" aria-label="Story viewer" onClick={() => setActiveStory(null)}>
+      <div className="story-viewer" onClick={(event) => event.stopPropagation()}>
+        <div className="story-viewer-top"><span className="story-viewer-owner">{activeStory.profile?.display_name || cleanUsername(activeStory.profile?.username) || 'VYBORA member'}</span><button type="button" onClick={() => setActiveStory(null)} aria-label="Close story">×</button></div>
+        <div className="story-viewer-media">
+          {activeStory.media_type === 'video' ? <video src={activeStory.media_url} controls autoPlay playsInline /> : <img src={activeStory.media_url} alt="Story" />}
+          {activeStory.caption && <p className="story-viewer-caption">{activeStory.caption}</p>}
+        </div>
+        <div className="story-viewer-bottom">
+          <span>{activeStory.isOwn ? (activeStory.views?.length || 0) + ' views' : 'Shared with the VYBORA community'}</span>
+          {activeStory.isOwn && <details className="story-viewers"><summary>View viewers</summary>
+            {activeStory.viewerProfiles?.length ? activeStory.viewerProfiles.map((person) => <div className="story-viewer-person" key={person.id}><span>{person.avatar_url ? <img src={person.avatar_url} alt="" /> : (person.display_name || cleanUsername(person.username) || 'V')[0].toUpperCase()}</span><b>{person.display_name || cleanUsername(person.username) || 'VYBORA member'}</b></div>) : <small>No viewers yet.</small>}
+          </details>}
+          {activeStory.isOwn && <button type="button" className="story-delete-button" onClick={async () => {
+            const { error } = await supabase.from('stories').delete().eq('id', activeStory.id);
+            if (error) { setStoryError('Could not delete story: ' + error.message); return; }
+            setActiveStory(null);
+            await loadStories();
+          }}>Delete story</button>}
+        </div>
+      </div>
+    </div>}
   </div>;
 }
 
