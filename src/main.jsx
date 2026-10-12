@@ -388,10 +388,11 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     } finally { setPushBusy(false); }
   }
 
-  async function requestServerPush(type, postId) {
+  async function requestServerPush(type, targetId) {
     if (!supabase || !session?.user?.id) return;
     try {
-      const { error } = await supabase.functions.invoke('send-push', { body: { type, post_id: postId } });
+      const body = type === 'message' ? { type, message_id: targetId } : { type, post_id: targetId };
+      const { error } = await supabase.functions.invoke('send-push', { body });
       if (error) console.warn('VYBORA push delivery could not be requested:', error.message);
     } catch (err) { console.warn('VYBORA push delivery could not be requested:', err); }
   }
@@ -957,6 +958,8 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         .single();
       if (error) throw error;
       setChatMessages((current) => current.some((message) => message.id === data.id) ? current : [...current, data]);
+      // Request a background push for the other conversation members; this does not block sending.
+      requestServerPush('message', data.id);
       setMessageDraft('');
       setMessageImage(null);
       setMessageImagePreview('');
