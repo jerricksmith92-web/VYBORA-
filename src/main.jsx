@@ -36,6 +36,19 @@ function ReelsPanel({ session }) {
         .order('created_at', { ascending: false }).limit(60);
       if (reelError) throw reelError;
       const rows = data || [];
+      // Personalize the Reels feed: put followed creators first while
+      // preserving newest-first order within both groups.
+      let followedIds = new Set();
+      try {
+        const { data: followRows } = await supabase.from('follows')
+          .select('following_id').eq('follower_id', session.user.id);
+        followedIds = new Set((followRows || []).map(row => row.following_id));
+      } catch (_) {}
+      rows.sort((a, b) => {
+        const aFollowed = followedIds.has(a.user_id) ? 1 : 0;
+        const bFollowed = followedIds.has(b.user_id) ? 1 : 0;
+        return bFollowed - aFollowed;
+      });
       const ids = rows.map((r) => r.id);
       const userIds = [...new Set(rows.map((r) => r.user_id))];
       const [{ data: people, error: peopleError }, { data: likeRows, error: likesError }, { data: commentRows, error: commentsError }] = await Promise.all([
