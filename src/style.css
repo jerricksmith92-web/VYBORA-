@@ -807,3 +807,34 @@ nav{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
  .message-composer>button[type=submit]{min-height:39px;padding:0 10px;font-size:11px}
  .profile-result{padding:9px 8px}
 }
+
+
+/* Full-screen app shell on phones: only the active screen scrolls. */
+@media(max-width:560px){
+ html,body,#root{width:100%;height:100%;min-height:100%;margin:0;overscroll-behavior:none}
+ body{overflow:hidden}
+ .app{width:100%;height:100dvh;min-height:100dvh;max-height:100dvh;display:flex;flex-direction:column;overflow:hidden;padding:0!important;margin:0!important;max-width:none!important}
+ .app>header.instagram-topbar{position:relative;top:auto;flex:0 0 auto;min-height:calc(66px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top);}
+ .app>main{display:block;flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 12px calc(12px + env(safe-area-inset-bottom))!important;width:100%;}
+ .app>footer{display:none!important}
+ .app>.mobile-nav.instagram-bottom-nav{position:relative!important;left:auto;right:auto;bottom:auto;flex:0 0 auto;height:calc(54px + env(safe-area-inset-bottom));padding-bottom:calc(4px + env(safe-area-inset-bottom));}
+ .app>main>.welcome{margin-top:0}
+ .app>main>.messages-panel,.app>main>.notifications-panel{min-height:100%;margin:0;padding:12px 0 18px!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;display:flex;flex-direction:column;gap:12px}
+ .messages-panel .messages-heading{flex:0 0 auto;margin:0;padding:6px 2px 4px}
+ .messages-panel .new-chat{flex:0 0 auto;margin:0}
+ .messages-panel .chat-layout{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:0}
+ .messages-panel .chat-list{flex:1 1 auto;min-height:0;overflow-y:auto}
+ .messages-panel .chat-thread{flex:1 1 auto;min-height:0;height:100%;max-height:none;display:flex;overflow:hidden}
+ .messages-panel .chat-list-in-thread{display:none!important}
+ .messages-panel .chat-list-in-thread + .chat-thread{display:flex!important;min-height:0;height:100%;flex:1 1 auto}
+ .messages-panel:has(.chat-list-in-thread) .messages-heading,.messages-panel:has(.chat-list-in-thread)>.new-chat{display:none!important}
+ .messages-panel:has(.chat-list-in-thread) .chat-layout{height:100%;min-height:0;flex:1 1 auto}
+ .messages-panel:has(.chat-list-in-thread) .chat-thread{height:100%;min-height:0;border-radius:16px}
+ .messages-panel:has(.chat-list-in-thread) .thread-heading{flex:0 0 auto}
+ .messages-panel:has(.chat-list-in-thread) .message-list{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto}
+ .messages-panel:has(.chat-list-in-thread) .message-composer{position:relative;bottom:auto;flex:0 0 auto;padding-bottom:max(9px,env(safe-area-inset-bottom))}
+ .messages-panel:has(.chat-list-in-thread) .chat-empty{margin:auto}
+ .app>main>.reels-page{min-height:100%;padding-bottom:16px}
+ .app>main>.placeholder{margin:12px 0 16px}
+}
+@media(min-width:561px){.app>main>.welcome{display:block}}
