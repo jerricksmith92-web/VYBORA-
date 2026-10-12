@@ -183,6 +183,16 @@ function ReelsPanel({ session }) {
 }
 
 function App() {
+  React.useEffect(() => {
+    // Close any stale iOS Safari Picture-in-Picture window left over from before the fix.
+    const closeFloatingVideo = () => {
+      const activeVideo = document.pictureInPictureElement;
+      if (activeVideo && document.exitPictureInPicture) document.exitPictureInPicture().catch(() => {});
+    };
+    closeFloatingVideo();
+    document.addEventListener('visibilitychange', closeFloatingVideo);
+    return () => document.removeEventListener('visibilitychange', closeFloatingVideo);
+  }, []);
   const [tab, setTab] = React.useState('Home');
   const [liked, setLiked] = React.useState({});
   const [commentOpen, setCommentOpen] = React.useState({});
