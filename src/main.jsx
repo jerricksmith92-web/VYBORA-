@@ -154,12 +154,12 @@ function ReelsPanel({ session }) {
   if (!session) return <section className="reels-page"><div className="reels-title"><span>VYBORA REELS</span><h2>Videos made for your world.</h2></div><p className="reels-muted">Sign in to watch and share Reels.</p></section>;
 
   return <section className="reels-page">
-    <div className="reels-title"><span>VYBORA REELS</span><h2>Scroll into something new.</h2><p>Short videos from your community.</p></div>
+    <div className="reels-title"><div className="reels-heading-copy"><span className="reels-clapper" aria-hidden="true">▣▶</span><div><h2>Reels</h2><p>Create short videos. Be creative 🔥</p></div></div><span className="reels-share-hint">▣ &nbsp; Share your moments</span></div>
     <form className="reel-upload" onSubmit={publishReel}>
+      <label className="reel-gallery-pick" onClick={() => fileRef.current?.click()}><span>＋</span></label>
       <input ref={fileRef} type="file" accept="video/*" onChange={e=>{setFile(e.target.files?.[0]||null);setError('');}} />
-      <input value={caption} onChange={e=>setCaption(e.target.value)} maxLength={500} placeholder="Write a caption for your Reel…" aria-label="Reel caption" />
-      <button type="submit" disabled={!file||uploadBusy}>{uploadBusy?'Uploading…':'＋ Share Reel'}</button>
-      <small>{file ? file.name+' · '+(file.size/1024/1024).toFixed(1)+' MB' : 'Choose a video up to 50 MB.'}</small>
+      <div className="reel-file-copy"><b>{file ? file.name : 'Choose a video from your gallery'}</b><small>▤ &nbsp; Supports up to 50 MB</small></div>
+      <button type="submit" disabled={!file||uploadBusy}>{uploadBusy?'Uploading…':'▣ &nbsp; Share Reel'}</button>
     </form>
     {error && <p className="reel-alert" role="alert">{error}</p>}
     {notice && <p className="reel-notice" role="status">{notice}</p>}
@@ -1313,13 +1313,13 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
 
       {tab === 'Reels' ? <ReelsPanel session={session} /> : tab === 'Home' ? <>
         <section className="stories">
-          <div className="sectionhead"><h2>Stories</h2><span>Disappear after 24 hours</span></div>
+          <div className="sectionhead story-heading"><div className="story-heading-copy"><span className="story-brand-mark" aria-hidden="true">✦</span><div><h2>Stories</h2><p>Share what’s happening in your world ✨</p></div></div><span className="story-expiry">◷ &nbsp; Disappears after 24 hours</span></div>
           {!session ? <p className="story-muted">Sign in to share and view stories.</p> : <>
             <form className="story-compose" onSubmit={publishStory}>
               <input ref={storyFileRef} className="story-file-input" type="file" accept="image/*,video/*" onChange={(event) => { setStoryFile(event.target.files?.[0] || null); setStoryError(''); }} />
-              <button className="story-pick-button" type="button" onClick={() => storyFileRef.current?.click()}>{storyFile ? 'Media selected ✓' : '＋ Choose photo / video'}</button>
-              <input className="story-caption-input" value={storyCaption} onChange={(event) => setStoryCaption(event.target.value)} maxLength={180} placeholder="Add a caption (optional)" aria-label="Story caption" />
-              <button className="story-publish-button" type="submit" disabled={!storyFile || storyBusy}>{storyBusy ? 'Sharing…' : 'Share story'}</button>
+              <div className="story-media-tools" aria-label="Choose story media"><button type="button" onClick={() => storyFileRef.current?.click()}><span>◎</span><small>Camera</small></button><button type="button" onClick={() => storyFileRef.current?.click()}><span>▧</span><small>Gallery</small></button><button type="button" onClick={() => storyFileRef.current?.click()}><span>▶</span><small>Video</small></button><button type="button" onClick={() => storyFileRef.current?.click()}><span>Aa</span><small>Text</small></button></div>
+              <input className="story-caption-input" value={storyCaption} onChange={(event) => setStoryCaption(event.target.value)} maxLength={180} placeholder="Add a caption (optional)…" aria-label="Story caption" />
+              <button className="story-publish-button" type="submit" disabled={!storyFile || storyBusy}>{storyBusy ? 'Sharing…' : '➤ &nbsp; Share Story'}</button>
             </form>
             {storyError && <p className="story-alert" role="alert">{storyError}</p>}
             {storyNotice && <p className="story-notice" role="status">{storyNotice}</p>}
