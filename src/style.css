@@ -557,3 +557,47 @@ nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
  .reel-file-copy small{font-size:9px}
  .reel-upload button{font-size:10px;padding:10px 11px;min-height:44px}
 }
+
+
+/* VYBORA home-screen premium finish */
+main{gap:18px}
+.welcome{position:relative;overflow:hidden;padding:25px 22px 22px!important;border:1px solid #302448!important;border-radius:24px!important;background:radial-gradient(ellipse at 92% 8%,#6124a833,transparent 38%),radial-gradient(ellipse at 0 100%,#153c5b40,transparent 48%),linear-gradient(145deg,#10101f 0%,#090c17 75%)!important;box-shadow:0 14px 35px #0004,inset 0 1px 0 #ffffff08}
+.welcome:after{content:"✦";position:absolute;right:22px;top:17px;font-size:24px;color:#c66cff;text-shadow:0 0 18px #b54bff;opacity:.9}
+.welcome .eyebrow{color:#d9a6ff!important;letter-spacing:2px;font-weight:800;font-size:10px!important}
+.welcome h1{font-size:clamp(30px,6vw,43px)!important;line-height:1.04!important;letter-spacing:-1.7px!important;margin:12px 0!important}
+.welcome h1 em{font-style:normal;background:linear-gradient(90deg,#f16bff,#9a62ff 60%,#74e5ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.welcome .muted{color:#b8c1dc!important;max-width:330px;font-size:13px!important;line-height:1.6}
+.welcome .pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:17px}
+.welcome .pills span{padding:8px 11px;border:1px solid #37304d;border-radius:99px;background:#151325;color:#d9d2f0;font-size:10px;letter-spacing:.15px}
+.composer{padding:15px!important;border:1px solid #2d3048!important;border-radius:22px!important;background:linear-gradient(140deg,#101422,#090c15)!important;box-shadow:0 10px 26px #0003}
+.composer .avatar{border:2px solid #b34dff!important;box-shadow:0 0 14px #9c39ff35;background:linear-gradient(145deg,#9b3df5,#282044)!important}
+.composebody textarea{min-height:82px!important;border:1px solid #333650!important;border-radius:15px!important;background:#0b1020!important;color:#f4f3ff!important;padding:14px!important;font-size:14px!important}
+.composebody textarea:focus{border-color:#a64cff!important;box-shadow:0 0 0 3px #a64cff1b!important;outline:none}
+.composefoot{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px}
+.composefoot button,.photo-pick{border-radius:999px!important}
+.composefoot>button:last-child{background:linear-gradient(110deg,#df35f2,#713cff)!important;box-shadow:0 0 15px #a32dff35;border:0!important;padding:11px 18px!important}
+.photo-pick{background:#1a1530!important;border:1px solid #5b3680!important;color:#dfc6ff!important;padding:10px 13px!important}
+.composefoot>span{color:#aaa6c4!important;font-size:11px!important;flex:1}
+.feed{padding:0!important}
+.feed>.sectionhead{padding:4px 2px 12px!important;align-items:center}
+.feed>.sectionhead h2{font-size:21px!important;letter-spacing:-.4px}
+.feed-count{display:inline-flex;align-items:center;margin-left:6px;padding:4px 8px;border-radius:99px;background:#211632;color:#d9b7ff;font-size:10px!important}
+.refresh-button{border:1px solid #3c3154!important;border-radius:99px!important;background:#141222!important;color:#d7c5f2!important;padding:9px 12px!important}
+.post{overflow:hidden;border:1px solid #292b42!important;border-radius:22px!important;background:linear-gradient(145deg,#101321,#0a0d16)!important;box-shadow:0 10px 25px #0003!important;margin-bottom:15px!important}
+.posthead{padding:15px 15px 10px!important}
+.post-author-open{color:#f4efff!important}
+.post-content,.post-body{color:#e7e6f2!important}
+.post-actions{border-top:1px solid #27263a!important}
+.post button{transition:transform .16s ease,filter .16s ease}
+.post button:active,.composefoot button:active,.story-publish-button:active{transform:scale(.97)}
+nav{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+@media(max-width:560px){
+ main{gap:14px}
+ .welcome{padding:21px 16px 18px!important;border-radius:21px!important}
+ .welcome h1{font-size:34px!important}
+ .welcome:after{right:16px;top:15px}
+ .composer{padding:12px!important;border-radius:19px!important}
+ .composefoot>span{display:none}
+ .feed>.sectionhead h2{font-size:19px!important}
+ .post{border-radius:19px!important}
+}
