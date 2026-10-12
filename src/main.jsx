@@ -1358,7 +1358,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         </section>
         {postError && <p className="post-alert" role="alert">{postError}</p>}
         <section className="feed">
-          <div className="sectionhead"><h2>Your feed</h2><button className="refresh-button" onClick={loadPosts}><RefreshCw size={14} /> Refresh</button></div>
+          <div className="sectionhead"><h2>Your feed <small className="feed-count">{posts.length} {posts.length === 1 ? "moment" : "moments"}</small></h2><button className="refresh-button" onClick={loadPosts}><RefreshCw size={14} /> Refresh</button></div>
           {engagementError && <p className="post-alert" role="alert">{engagementError}</p>}
           {posts.length ? posts.map((p) => <article className={'post ' + (highlightedPostId === p.id ? 'post-highlight' : '')} id={'post-' + p.id} key={p.id}>
             <div className="posthead"><button type="button" className="post-author-open" onClick={() => { const profile = profiles.find((item) => item.id === p.user_id); if (profile) openUserProfile(profile); else setChatNotice('Profile details are not available yet.'); }} aria-label={'Open ' + p.user + ' profile'}><div className="avatar">{p.avatar_url ? <img src={p.avatar_url} alt="" /> : (p.user?.[0]?.toUpperCase() || 'V')}</div><span className="post-author-copy"><b>{p.user}</b><small>{p.handle} · {p.time}</small></span></button><button className="dots" aria-label="More post options">•••</button></div>
