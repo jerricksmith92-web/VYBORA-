@@ -457,3 +457,8 @@ nav button.active svg,.mobile-nav button.active svg{stroke-width:2.2;}
 .reel-sound-toggle{position:absolute;z-index:4;top:14px;right:12px;display:flex;align-items:center;gap:6px;border:1px solid #ffffff55;border-radius:22px;background:#09070bb8;color:#fff;padding:8px 10px;font-size:11px;font-weight:750;backdrop-filter:blur(8px)}
 .reel-sound-toggle svg{filter:drop-shadow(0 1px 3px #000)}
 @media(max-width:480px){.reels-feed{max-height:calc(100svh - 245px);min-height:360px;gap:0}.reel-card{height:calc(100svh - 245px);min-height:360px;scroll-snap-stop:always}.reel-sound-toggle{top:10px;right:9px}}
+
+
+/* Home feed polish: clearer post grouping and responsive feed count. */
+.feed{margin-top:8px;border:1px solid #292431;border-radius:18px;background:linear-gradient(180deg,#121018 0%,#0f0d14 100%);overflow:hidden}.feed>.sectionhead{padding:5px 0 14px}.feed .sectionhead h2{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.feed-count{font-family:"DM Sans",sans-serif;font-size:10px;font-weight:500;letter-spacing:.2px;color:#bda2dd;background:#241b30;border:1px solid #3b2b4d;border-radius:999px;padding:4px 8px}.feed .post{padding:17px 0}.feed .post:last-child{padding-bottom:7px}.feed .post-image{border-radius:13px;max-height:620px;object-fit:cover}.feed-empty{padding:42px 16px 46px}.feed-empty b{font-size:15px}.feed-empty p{line-height:1.6}
+@media(max-width:520px){.feed{padding:15px 13px 4px;border-radius:15px}.feed .post-image{border-radius:10px}.feed-count{font-size:9px}}
