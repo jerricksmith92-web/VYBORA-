@@ -1293,10 +1293,14 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
   });
 
   return <div className="app">
-    <header>
+    <header className="instagram-topbar">
       <button className="brand" onClick={() => setTab('Home')} aria-label="VYBORA home"><span className="logo">v.</span><span>vybora</span></button>
       <span className="tag">YOUR WORLD, YOUR PEOPLE</span>
-      <button className="avatar header-avatar" onClick={() => setTab('Profile')} aria-label="Open profile">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || session?.user?.email || 'V')[0].toUpperCase()}</button>
+      <div className="topbar-actions">
+        <button className="topbar-icon" onClick={() => setTab('Notifications')} aria-label="Notifications"><Heart size={25} strokeWidth={1.9}/>{notifications.filter(n=>!n.is_read).length>0&&<i className="topbar-badge">{notifications.filter(n=>!n.is_read).length>99?'99+':notifications.filter(n=>!n.is_read).length}</i>}</button>
+        <button className="topbar-icon" onClick={() => setTab('Messages')} aria-label="Messages"><Send size={24} strokeWidth={1.9}/>{unreadMessageCount>0&&<i className="topbar-badge">{unreadMessageCount>99?'99+':unreadMessageCount}</i>}</button>
+        <button className="avatar header-avatar" onClick={() => setTab('Profile')} aria-label="Open profile">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || session?.user?.email || 'V')[0].toUpperCase()}</button>
+      </div>
     </header>
     <nav>{['Home', 'Explore', 'Reels', 'Messages', 'Notifications', 'Profile'].map((t) =>
       <button className={tab === t ? 'active' : ''} onClick={() => setTab(t)} key={t}>
@@ -1468,7 +1472,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         </div>}<button onClick={() => setTab('Home')}>Back to home</button></section>}
       <footer>VYBORA © 2026 <span>Made for your world ✦</span></footer>
     </main>
-    <nav className="mobile-nav">{[['Home',<House size={21} strokeWidth={2} />],['Explore',<Compass size={21} strokeWidth={2} />],['Reels',<Play size={21} strokeWidth={2} />],['Create',<PlusSquare size={22} strokeWidth={2} />],['Notifications',<Bell size={21} strokeWidth={2} />],['Messages',<MessageCircle size={21} strokeWidth={2} />],['Profile',<UserRound size={21} strokeWidth={2} />]].map(([name,icon]) => <button key={name} className={tab === name ? 'active' : ''} onClick={() => name === 'Create' ? (setTab('Home'), document.querySelector('.composebody textarea')?.focus()) : setTab(name)}><span>{icon}{name === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="mobile-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}{name === 'Messages' && unreadMessageCount > 0 && <i className="mobile-unread-count">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</i>}</span><small>{name === 'Create' ? 'Post' : name}</small></button>)}</nav>
+    <nav className="mobile-nav instagram-bottom-nav">{[['Home',<House size={25} strokeWidth={1.9} />],['Explore',<Search size={25} strokeWidth={1.9} />],['Create',<PlusSquare size={27} strokeWidth={1.9} />],['Reels',<Play size={25} strokeWidth={1.9} />],['Profile',myProfile?.avatar_url?<img className="bottom-profile-photo" src={myProfile.avatar_url} alt="" />:<UserRound size={24} strokeWidth={1.9} />]].map(([name,icon]) => <button key={name} className={tab === name ? 'active' : ''} aria-label={name==='Create'?'Create post':name} onClick={() => name === 'Create' ? (setTab('Home'), document.querySelector('.composebody textarea')?.focus()) : setTab(name)}><span>{icon}</span></button>)}</nav>
     {activeStory && <div className="story-overlay" role="dialog" aria-modal="true" aria-label="Story viewer" onClick={() => setActiveStory(null)}>
       <div className="story-viewer story-instagram" onClick={(event) => event.stopPropagation()}>
         <div className="story-progress-row">{stories.map((item,index)=><span className="story-progress-track" key={item.id}><i className={item.id===activeStory.id?'current':index<stories.findIndex(st=>st.id===activeStory.id)?'done':''}/></span>)}</div>
