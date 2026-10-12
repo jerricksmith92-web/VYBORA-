@@ -840,13 +840,13 @@ nav{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 @media(min-width:561px){.app>main>.welcome{display:block}}
 
 
-/* Keyboard-aware conversation viewport on iOS Safari. */
+/* Stable iPhone keyboard behavior: retain the full app shell and let Safari manage its visual viewport. */
 @media(max-width:560px){
- .app{height:var(--vybora-visible-height,100dvh);min-height:var(--vybora-visible-height,100dvh);max-height:var(--vybora-visible-height,100dvh)}
+ .app{height:100dvh;min-height:100dvh;max-height:100dvh}
  .app>main{scroll-padding-bottom:12px}
  .messages-panel:has(.chat-list-in-thread){height:100%;min-height:0;overflow:hidden}
  .messages-panel:has(.chat-list-in-thread) .chat-layout,.messages-panel:has(.chat-list-in-thread) .chat-thread{min-height:0;max-height:none}
  .messages-panel:has(.chat-list-in-thread) .message-list{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scroll-behavior:auto}
  .message-composer input:not([type=file]){font-size:16px}
- .messages-panel:has(.chat-list-in-thread) .message-composer{flex-shrink:0;position:relative;bottom:auto;transform:none}
+ .messages-panel:has(.chat-list-in-thread) .message-composer{flex-shrink:0;position:sticky;bottom:0;transform:none}
 }
