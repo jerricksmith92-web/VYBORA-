@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { House, Compass, PlusSquare, MessageCircle, Bell, UserRound, Heart, MessageSquare, Share2, Bookmark, Send, Search, RefreshCw, ImagePlus, X } from 'lucide-react';
+import { House, Compass, Play, PlusSquare, MessageCircle, Bell, UserRound, Heart, MessageSquare, Share2, Bookmark, Send, Search, RefreshCw, ImagePlus, X } from 'lucide-react';
 import { supabase, supabaseConfigured } from './supabase.js';
 import './style.css';
 
@@ -10,6 +10,133 @@ const APP_URL = 'https://jerricksmith92-web.github.io/VYBORA-/';
 // This changes display only; account IDs and stored usernames remain untouched.
 function cleanUsername(value) {
   return String(value || '').replace(/_[a-f0-9]{6}$/i, '');
+}
+
+
+function ReelsPanel({ session }) {
+  const [reels, setReels] = React.useState([]);
+  const [busy, setBusy] = React.useState(false);
+  const [uploadBusy, setUploadBusy] = React.useState(false);
+  const [file, setFile] = React.useState(null);
+  const [caption, setCaption] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [notice, setNotice] = React.useState('');
+  const [commentDrafts, setCommentDrafts] = React.useState({});
+  const [openComments, setOpenComments] = React.useState({});
+  const fileRef = React.useRef(null);
+
+  const loadReels = React.useCallback(async () => {
+    if (!supabase || !session?.user?.id) { setReels([]); return; }
+    setBusy(true);
+    setError('');
+    try {
+      const { data, error: reelError } = await supabase.from('reels')
+        .select('id,user_id,video_url,caption,created_at')
+        .order('created_at', { ascending: false }).limit(60);
+      if (reelError) throw reelError;
+      const rows = data || [];
+      const ids = rows.map((r) => r.id);
+      const userIds = [...new Set(rows.map((r) => r.user_id))];
+      const [{ data: people, error: peopleError }, { data: likeRows, error: likesError }, { data: commentRows, error: commentsError }] = await Promise.all([
+        userIds.length ? supabase.from('profiles').select('id,username,display_name,avatar_url').in('id', userIds) : Promise.resolve({data:[],error:null}),
+        ids.length ? supabase.from('reels_likes').select('reel_id,user_id').in('reel_id', ids) : Promise.resolve({data:[],error:null}),
+        ids.length ? supabase.from('reels_comments').select('id,reel_id,user_id,content,created_at').in('reel_id', ids).order('created_at', {ascending:true}) : Promise.resolve({data:[],error:null})
+      ]);
+      if (peopleError) throw peopleError;
+      if (likesError) throw likesError;
+      if (commentsError) throw commentsError;
+      const profilesById = Object.fromEntries((people || []).map(p => [p.id,p]));
+      const likerIds = [...new Set((likeRows || []).map(l => l.user_id))];
+      const commenterIds = [...new Set((commentRows || []).map(c => c.user_id))];
+      const extraIds = [...new Set([...likerIds,...commenterIds])].filter(id => !profilesById[id]);
+      if (extraIds.length) {
+        const {data: extraProfiles} = await supabase.from('profiles').select('id,username,display_name,avatar_url').in('id',extraIds);
+        (extraProfiles || []).forEach(p => {profilesById[p.id]=p;});
+      }
+      const next = rows.map(r => ({
+        ...r, profile: profilesById[r.user_id] || {},
+        likes: (likeRows || []).filter(l => l.reel_id === r.id).length,
+        liked: (likeRows || []).some(l => l.reel_id === r.id && l.user_id === session.user.id),
+        comments: (commentRows || []).filter(c => c.reel_id === r.id).map(c => ({...c, profile:profilesById[c.user_id] || {}}))
+      }));
+      setReels(next);
+    } catch (e) {
+      setError('Could not load Reels: ' + (e.message || 'Please try again.'));
+    } finally { setBusy(false); }
+  }, [session?.user?.id]);
+
+  React.useEffect(() => { loadReels(); }, [loadReels]);
+
+  async function publishReel(event) {
+    event.preventDefault();
+    if (!session?.user?.id || !file || uploadBusy) return;
+    if (!file.type.startsWith('video/')) { setError('Choose a video file.'); return; }
+    if (file.size > 50 * 1024 * 1024) { setError('Reel videos must be 50 MB or smaller.'); return; }
+    setUploadBusy(true); setError(''); setNotice('');
+    try {
+      const ext = (file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g,'') || 'mp4';
+      const path = session.user.id + '/reels/' + crypto.randomUUID() + '.' + ext;
+      const {error: uploadError} = await supabase.storage.from('post-media').upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});
+      if (uploadError) throw uploadError;
+      const videoUrl = supabase.storage.from('post-media').getPublicUrl(path).data.publicUrl;
+      const {error: insertError} = await supabase.from('reels').insert({user_id:session.user.id,video_url:videoUrl,caption:caption.trim()});
+      if (insertError) throw insertError;
+      setFile(null); setCaption('');
+      if (fileRef.current) fileRef.current.value = '';
+      setNotice('Your Reel is live!');
+      await loadReels();
+    } catch(e) { setError('Could not publish Reel: ' + (e.message || 'Please try again.')); }
+    finally { setUploadBusy(false); }
+  }
+
+  async function toggleReelLike(reel) {
+    if (!session?.user?.id) return;
+    const wasLiked = reel.liked;
+    setReels(current => current.map(r => r.id === reel.id ? {...r,liked:!wasLiked,likes:Math.max(0,r.likes+(wasLiked?-1:1))} : r));
+    const result = wasLiked
+      ? await supabase.from('reels_likes').delete().eq('reel_id',reel.id).eq('user_id',session.user.id)
+      : await supabase.from('reels_likes').insert({reel_id:reel.id,user_id:session.user.id});
+    if (result.error) {
+      setReels(current => current.map(r => r.id === reel.id ? {...r,liked:wasLiked,likes:Math.max(0,r.likes+(wasLiked?1:-1))} : r));
+      setError('Could not update like: ' + result.error.message);
+    }
+  }
+
+  async function submitReelComment(event,reel) {
+    event.preventDefault();
+    const content=(commentDrafts[reel.id] || '').trim();
+    if (!content || !session?.user?.id) return;
+    const {data,error:commentError}=await supabase.from('reels_comments').insert({reel_id:reel.id,user_id:session.user.id,content}).select('id,reel_id,user_id,content,created_at').single();
+    if (commentError) {setError('Could not add comment: '+commentError.message);return;}
+    const {data:person}=await supabase.from('profiles').select('id,username,display_name,avatar_url').eq('id',session.user.id).maybeSingle();
+    setReels(current=>current.map(r=>r.id===reel.id?{...r,comments:[...r.comments,{...data,profile:person||{}}]}:r));
+    setCommentDrafts(current=>({...current,[reel.id]:''}));
+  }
+
+  if (!session) return <section className="reels-page"><div className="reels-title"><span>VYBORA REELS</span><h2>Videos made for your world.</h2></div><p className="reels-muted">Sign in to watch and share Reels.</p></section>;
+
+  return <section className="reels-page">
+    <div className="reels-title"><span>VYBORA REELS</span><h2>Scroll into something new.</h2><p>Short videos from your community.</p></div>
+    <form className="reel-upload" onSubmit={publishReel}>
+      <input ref={fileRef} type="file" accept="video/*" onChange={e=>{setFile(e.target.files?.[0]||null);setError('');}} />
+      <input value={caption} onChange={e=>setCaption(e.target.value)} maxLength={500} placeholder="Write a caption for your Reel…" aria-label="Reel caption" />
+      <button type="submit" disabled={!file||uploadBusy}>{uploadBusy?'Uploading…':'＋ Share Reel'}</button>
+      <small>{file ? file.name+' · '+(file.size/1024/1024).toFixed(1)+' MB' : 'Choose a video up to 50 MB.'}</small>
+    </form>
+    {error && <p className="reel-alert" role="alert">{error}</p>}
+    {notice && <p className="reel-notice" role="status">{notice}</p>}
+    {busy && !reels.length && <p className="reels-muted">Loading Reels…</p>}
+    {!busy && !reels.length && !error && <div className="reels-empty"><span>▶</span><h3>Your next favourite video goes here.</h3><p>Be the first to share a Reel with the VYBORA community.</p></div>}
+    <div className="reels-feed">{reels.map(reel=><article className="reel-card" key={reel.id}>
+      <video className="reel-video" src={reel.video_url} controls playsInline preload="metadata" loop />
+      <div className="reel-details">
+        <div className="reel-author"><span className="reel-avatar">{reel.profile?.avatar_url?<img src={reel.profile.avatar_url} alt="" />:(reel.profile?.display_name||cleanUsername(reel.profile?.username)||'V')[0].toUpperCase()}</span><span><b>{reel.profile?.display_name||cleanUsername(reel.profile?.username)||'VYBORA member'}</b><small>@{cleanUsername(reel.profile?.username)||'member'}</small></span></div>
+        {reel.caption && <p className="reel-caption">{reel.caption}</p>}
+        <div className="reel-actions"><button type="button" className={reel.liked?'is-liked':''} onClick={()=>toggleReelLike(reel)}><Heart size={19} fill={reel.liked?'currentColor':'none'}/> {reel.likes}</button><button type="button" onClick={()=>setOpenComments(current=>({...current,[reel.id]:!current[reel.id]}))}><MessageSquare size={19}/> {reel.comments.length}</button><button type="button" onClick={async()=>{try{await navigator.clipboard.writeText(reel.video_url);setNotice('Reel link copied!');}catch{setNotice('Use your browser share option to share this Reel.');}}}><Share2 size={19}/> Share</button></div>
+        {openComments[reel.id] && <div className="reel-comments">{reel.comments.map(c=><p key={c.id}><b>{c.profile?.display_name||cleanUsername(c.profile?.username)||'Member'}</b> {c.content}</p>)}<form onSubmit={e=>submitReelComment(e,reel)}><input value={commentDrafts[reel.id]||''} onChange={e=>setCommentDrafts(current=>({...current,[reel.id]:e.target.value}))} maxLength={500} placeholder="Add a comment…" /><button type="submit" disabled={!(commentDrafts[reel.id]||'').trim()}>Send</button></form></div>}
+      </div>
+    </article>)}</div>
+  </section>;
 }
 
 function App() {
@@ -1128,9 +1255,9 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
       <span className="tag">YOUR WORLD, YOUR PEOPLE</span>
       <button className="avatar header-avatar" onClick={() => setTab('Profile')} aria-label="Open profile">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || session?.user?.email || 'V')[0].toUpperCase()}</button>
     </header>
-    <nav>{['Home', 'Explore', 'Messages', 'Notifications', 'Profile'].map((t) =>
+    <nav>{['Home', 'Explore', 'Reels', 'Messages', 'Notifications', 'Profile'].map((t) =>
       <button className={tab === t ? 'active' : ''} onClick={() => setTab(t)} key={t}>
-        {({ Home: <House size={18} strokeWidth={2} />, Explore: <Compass size={18} strokeWidth={2} />, Messages: <MessageCircle size={18} strokeWidth={2} />, Notifications: <Bell size={18} strokeWidth={2} />, Profile: <UserRound size={18} strokeWidth={2} /> })[t]} <span>{t}</span>{t === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="nav-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}{t === 'Messages' && unreadMessageCount > 0 && <i className="nav-unread-count">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</i>}
+        {({ Home: <House size={18} strokeWidth={2} />, Explore: <Compass size={18} strokeWidth={2} />, Reels: <Play size={18} strokeWidth={2} />, Messages: <MessageCircle size={18} strokeWidth={2} />, Notifications: <Bell size={18} strokeWidth={2} />, Profile: <UserRound size={18} strokeWidth={2} /> })[t]} <span>{t}</span>{t === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="nav-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}{t === 'Messages' && unreadMessageCount > 0 && <i className="nav-unread-count">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</i>}
       </button>
     )}</nav>
     <main>
@@ -1141,7 +1268,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         <div className="pills"><span>✦ Your community</span><span>◉ Real moments</span></div>
       </section>
 
-      {tab === 'Home' ? <>
+      {tab === 'Reels' ? <ReelsPanel session={session} /> : tab === 'Home' ? <>
         <section className="stories">
           <div className="sectionhead"><h2>Stories</h2><span>Disappear after 24 hours</span></div>
           {!session ? <p className="story-muted">Sign in to share and view stories.</p> : <>
@@ -1298,7 +1425,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         </div>}<button onClick={() => setTab('Home')}>Back to home</button></section>}
       <footer>VYBORA © 2026 <span>Made for your world ✦</span></footer>
     </main>
-    <nav className="mobile-nav">{[['Home',<House size={21} strokeWidth={2} />],['Explore',<Compass size={21} strokeWidth={2} />],['Create',<PlusSquare size={22} strokeWidth={2} />],['Notifications',<Bell size={21} strokeWidth={2} />],['Messages',<MessageCircle size={21} strokeWidth={2} />],['Profile',<UserRound size={21} strokeWidth={2} />]].map(([name,icon]) => <button key={name} className={tab === name ? 'active' : ''} onClick={() => name === 'Create' ? (setTab('Home'), document.querySelector('.composebody textarea')?.focus()) : setTab(name)}><span>{icon}{name === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="mobile-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}{name === 'Messages' && unreadMessageCount > 0 && <i className="mobile-unread-count">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</i>}</span><small>{name === 'Create' ? 'Post' : name}</small></button>)}</nav>
+    <nav className="mobile-nav">{[['Home',<House size={21} strokeWidth={2} />],['Explore',<Compass size={21} strokeWidth={2} />],['Reels',<Play size={21} strokeWidth={2} />],['Create',<PlusSquare size={22} strokeWidth={2} />],['Notifications',<Bell size={21} strokeWidth={2} />],['Messages',<MessageCircle size={21} strokeWidth={2} />],['Profile',<UserRound size={21} strokeWidth={2} />]].map(([name,icon]) => <button key={name} className={tab === name ? 'active' : ''} onClick={() => name === 'Create' ? (setTab('Home'), document.querySelector('.composebody textarea')?.focus()) : setTab(name)}><span>{icon}{name === 'Notifications' && notifications.filter((n) => !n.is_read).length > 0 && <i className="mobile-unread-count">{notifications.filter((n) => !n.is_read).length > 99 ? '99+' : notifications.filter((n) => !n.is_read).length}</i>}{name === 'Messages' && unreadMessageCount > 0 && <i className="mobile-unread-count">{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</i>}</span><small>{name === 'Create' ? 'Post' : name}</small></button>)}</nav>
     {activeStory && <div className="story-overlay" role="dialog" aria-modal="true" aria-label="Story viewer" onClick={() => setActiveStory(null)}>
       <div className="story-viewer" onClick={(event) => event.stopPropagation()}>
         <div className="story-viewer-top"><span className="story-viewer-owner">{activeStory.profile?.display_name || cleanUsername(activeStory.profile?.username) || 'VYBORA member'}</span><button type="button" onClick={() => setActiveStory(null)} aria-label="Close story">×</button></div>
