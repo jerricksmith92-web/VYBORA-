@@ -67,6 +67,23 @@ function ReelsPanel({ session }) {
 
   React.useEffect(() => { loadReels(); }, [loadReels]);
 
+  React.useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const videos = Array.from(document.querySelectorAll('.reel-video'));
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const video = entry.target;
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      });
+    }, { threshold: [0, 0.6, 1] });
+    videos.forEach((video) => observer.observe(video));
+    return () => { observer.disconnect(); videos.forEach((video) => video.pause()); };
+  }, [reels]);
+
   async function publishReel(event) {
     event.preventDefault();
     if (!session?.user?.id || !file || uploadBusy) return;
@@ -127,8 +144,8 @@ function ReelsPanel({ session }) {
     {notice && <p className="reel-notice" role="status">{notice}</p>}
     {busy && !reels.length && <p className="reels-muted">Loading Reels…</p>}
     {!busy && !reels.length && !error && <div className="reels-empty"><span>▶</span><h3>Your next favourite video goes here.</h3><p>Be the first to share a Reel with the VYBORA community.</p></div>}
-    <div className="reels-feed">{reels.map(reel=><article className="reel-card" key={reel.id}>
-      <video className="reel-video" src={reel.video_url} autoPlay muted playsInline preload="auto" loop controls={false} onClick={e=>{const v=e.currentTarget;if(v.paused)v.play().catch(()=>{});else v.pause();}} onLoadedData={e=>e.currentTarget.play().catch(()=>{})} />
+    <div className="reels-feed">{reels.map((reel,index)=><article className="reel-card" key={reel.id}>
+      <video className="reel-video" src={reel.video_url} autoPlay muted playsInline preload={index===0?"auto":"metadata"} loop controls={false} onClick={e=>{const v=e.currentTarget;if(v.paused)v.play().catch(()=>{});else v.pause();}} onLoadedData={e=>e.currentTarget.play().catch(()=>{})} />
       <div className="reel-overlay-bottom">
         <div className="reel-author"><span className="reel-avatar">{reel.profile?.avatar_url?<img src={reel.profile.avatar_url} alt="" />:(reel.profile?.display_name||cleanUsername(reel.profile?.username)||'V')[0].toUpperCase()}</span><span><b>{reel.profile?.display_name||cleanUsername(reel.profile?.username)||'VYBORA member'}</b><small>@{cleanUsername(reel.profile?.username)||'member'}</small></span></div>
         {reel.caption && <p className="reel-caption">{reel.caption}</p>}
