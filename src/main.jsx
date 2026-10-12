@@ -1212,31 +1212,8 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     };
   }, [chatMessages, activeChatId]);
 
-  // iPhone Safari shrinks the visual viewport when the keyboard opens.
-  // Resize the app shell to that visible area so the composer stays above the keyboard.
-  React.useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    const syncVisibleHeight = () => {
-      document.documentElement.style.setProperty('--vybora-visible-height', Math.round(viewport.height) + 'px');
-      if (document.activeElement?.closest?.('.message-composer')) {
-        requestAnimationFrame(() => {
-          const list = messageListRef.current;
-          if (list) list.scrollTop = list.scrollHeight;
-        });
-      }
-    };
-    syncVisibleHeight();
-    viewport.addEventListener('resize', syncVisibleHeight);
-    viewport.addEventListener('scroll', syncVisibleHeight);
-    window.addEventListener('orientationchange', syncVisibleHeight);
-    return () => {
-      viewport.removeEventListener('resize', syncVisibleHeight);
-      viewport.removeEventListener('scroll', syncVisibleHeight);
-      window.removeEventListener('orientationchange', syncVisibleHeight);
-      document.documentElement.style.removeProperty('--vybora-visible-height');
-    };
-  }, []);
+  // Keep the keyboard under the browser's native viewport handling; resizing the app shell
+  // on iOS Safari can scroll the entire interface away from the active conversation.
 
   function handleMessageDraftChange(value) {
     setMessageDraft(value);
