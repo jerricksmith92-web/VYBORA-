@@ -850,3 +850,10 @@ nav{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
  .message-composer input:not([type=file]){font-size:16px}
  .messages-panel:has(.chat-list-in-thread) .message-composer{flex-shrink:0;position:sticky;bottom:0;transform:none}
 }
+
+/* Explore video sound control */
+.explore-video-wrap{position:relative;width:100%;margin:8px 0 14px;isolation:isolate}
+.explore-video-wrap .explore-post-video{margin:0;width:100%;display:block}
+.explore-video-sound-toggle{position:absolute;z-index:5;top:12px;right:12px;display:flex;align-items:center;gap:6px;border:1px solid #ffffff66;border-radius:22px;background:#09070bd9;color:#fff;padding:8px 11px;font-size:12px;font-weight:750;backdrop-filter:blur(8px);cursor:pointer;box-shadow:0 2px 10px #0005}
+.explore-video-sound-toggle svg{flex-shrink:0}
+@media(max-width:480px){.explore-video-sound-toggle{top:9px;right:9px;padding:7px 9px;font-size:11px}}
