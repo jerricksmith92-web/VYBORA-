@@ -364,6 +364,26 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     if (session?.user?.id && supabase) loadPosts();
     else setPosts([]);
   }, [session?.user?.id]);
+
+  // Pause feed videos when they scroll mostly out of view, so their audio
+  // never keeps playing behind the next posts.
+  React.useEffect(() => {
+    const videos = Array.from(document.querySelectorAll('.post-video'));
+    if (!videos.length) return undefined;
+    if (typeof IntersectionObserver === 'undefined') {
+      return () => videos.forEach((video) => video.pause());
+    }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.intersectionRatio < 0.35) entry.target.pause();
+      });
+    }, { threshold: [0, 0.35, 0.6, 1] });
+    videos.forEach((video) => observer.observe(video));
+    return () => {
+      observer.disconnect();
+      videos.forEach((video) => video.pause());
+    };
+  }, [posts, tab]);
   
   React.useEffect(() => {
     if (!session?.user?.id || !supabase) { setStories([]); return undefined; }
