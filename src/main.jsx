@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { House, Compass, Play, PlusSquare, MessageCircle, Bell, UserRound, Heart, MessageSquare, Share2, Bookmark, Send, Search, RefreshCw, ImagePlus, X } from 'lucide-react';
+import { House, Compass, Play, PlusSquare, MessageCircle, Bell, UserRound, Heart, MessageSquare, Share2, Bookmark, Send, Search, RefreshCw, ImagePlus, X, Volume2, VolumeX } from 'lucide-react';
 import { supabase, supabaseConfigured } from './supabase.js';
 import './style.css';
 
@@ -23,6 +23,7 @@ function ReelsPanel({ session }) {
   const [notice, setNotice] = React.useState('');
   const [commentDrafts, setCommentDrafts] = React.useState({});
   const [openComments, setOpenComments] = React.useState({});
+  const [soundOn, setSoundOn] = React.useState(false);
   const fileRef = React.useRef(null);
 
   const loadReels = React.useCallback(async () => {
@@ -83,6 +84,10 @@ function ReelsPanel({ session }) {
     videos.forEach((video) => observer.observe(video));
     return () => { observer.disconnect(); videos.forEach((video) => video.pause()); };
   }, [reels]);
+
+  React.useEffect(() => {
+    document.querySelectorAll(".reel-video").forEach(video => { video.muted = !soundOn; });
+  }, [soundOn, reels]);
 
   async function publishReel(event) {
     event.preventDefault();
@@ -145,7 +150,8 @@ function ReelsPanel({ session }) {
     {busy && !reels.length && <p className="reels-muted">Loading Reels…</p>}
     {!busy && !reels.length && !error && <div className="reels-empty"><span>▶</span><h3>Your next favourite video goes here.</h3><p>Be the first to share a Reel with the VYBORA community.</p></div>}
     <div className="reels-feed">{reels.map((reel,index)=><article className="reel-card" key={reel.id}>
-      <video className="reel-video" src={reel.video_url} autoPlay muted playsInline preload={index===0?"auto":"metadata"} loop controls={false} onClick={e=>{const v=e.currentTarget;if(v.paused)v.play().catch(()=>{});else v.pause();}} onLoadedData={e=>e.currentTarget.play().catch(()=>{})} />
+      <video className="reel-video" src={reel.video_url} autoPlay muted={!soundOn} playsInline preload={index===0?"auto":"metadata"} loop controls={false} onClick={e=>{const v=e.currentTarget;if(v.paused)v.play().catch(()=>{});else v.pause();}} onLoadedData={e=>{if(e.currentTarget.closest(".reel-card")?.getBoundingClientRect().top < window.innerHeight * 0.65)e.currentTarget.play().catch(()=>{});}} />
+      <button type="button" className="reel-sound-toggle" aria-label={soundOn?"Mute Reel sound":"Turn Reel sound on"} onClick={()=>setSoundOn(current=>!current)}>{soundOn?<Volume2 size={22}/>:<VolumeX size={22}/>}<span>{soundOn?"Sound on":"Sound off"}</span></button>
       <div className="reel-overlay-bottom">
         <div className="reel-author"><span className="reel-avatar">{reel.profile?.avatar_url?<img src={reel.profile.avatar_url} alt="" />:(reel.profile?.display_name||cleanUsername(reel.profile?.username)||'V')[0].toUpperCase()}</span><span><b>{reel.profile?.display_name||cleanUsername(reel.profile?.username)||'VYBORA member'}</b><small>@{cleanUsername(reel.profile?.username)||'member'}</small></span></div>
         {reel.caption && <p className="reel-caption">{reel.caption}</p>}
