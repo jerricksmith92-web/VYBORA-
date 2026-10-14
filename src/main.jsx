@@ -867,16 +867,44 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
       setStoryError('Choose a photo or video for your story.');
       return;
     }
-    const makeTextStorySvg = () => {
-      const esc = value => value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-      const words = storyCaption.trim().slice(0,180).split(/\s+/);
-      const lines = []; let line = '';
-      words.forEach(word => { const next = line ? line + ' ' + word : word; if (next.length > 22 && line) { lines.push(line); line = word; } else line = next; });
+    const makeTextStoryImage = async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1080;
+      canvas.height = 1920;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Your browser could not prepare the text story. Please try again.');
+      const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
+      gradient.addColorStop(0, '#25133f');
+      gradient.addColorStop(0.55, '#7546b8');
+      gradient.addColorStop(1, '#d45b9f');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 34px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('VYBORA', 64, 110);
+      const words = storyCaption.trim().slice(0,180).split(/\\s+/);
+      const lines = [];
+      let line = '';
+      words.forEach(word => {
+        const next = line ? line + ' ' + word : word;
+        if (ctx.measureText(next).width > 900 && line) { lines.push(line); line = word; }
+        else line = next;
+      });
       if (line) lines.push(line);
-      const text = lines.map((item,i) => '<text x="540" y="' + (850 - (lines.length-1)*38/2 + i*38) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="34" font-weight="700" fill="#ffffff">' + esc(item) + '</text>').join('');
-      return '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#25133f"/><stop offset=".55" stop-color="#7546b8"/><stop offset="1" stop-color="#d45b9f"/></linearGradient></defs><rect width="1080" height="1920" fill="url(#g)"/><text x="64" y="110" font-family="Arial,sans-serif" font-size="34" font-weight="700" fill="#ffffff">VYBORA</text>' + text + '<text x="540" y="1810" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" fill="#ffffffcc">YOUR WORLD • YOUR PEOPLE</text></svg>';
+      ctx.font = '700 54px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const lineHeight = 76;
+      const startY = canvas.height / 2 - ((lines.length - 1) * lineHeight) / 2;
+      lines.forEach((item, i) => ctx.fillText(item, 540, startY + i * lineHeight, 920));
+      ctx.font = '24px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillText('YOUR WORLD • YOUR PEOPLE', 540, 1810);
+      const blob = await new Promise((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Could not create the story image.')), 'image/png'));
+      return new File([blob], 'vybora-text-story.png', { type: 'image/png' });
     };
-    const uploadFile = storyTextMode ? new File([makeTextStorySvg()], 'vybora-text-story.svg', {type:'image/svg+xml'}) : storyFile;
+    const uploadFile = storyTextMode ? await makeTextStoryImage() : storyFile;
     const maxBytes = isVideo ? 20 * 1024 * 1024 : 8 * 1024 * 1024;
     if (uploadFile.size > maxBytes) {
       setStoryError(isVideo ? 'Story videos must be 20 MB or smaller.' : 'Story photos must be 8 MB or smaller.');
