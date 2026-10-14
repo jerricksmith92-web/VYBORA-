@@ -238,6 +238,7 @@ function App() {
   const [stories, setStories] = React.useState([]);
   const [storyFile, setStoryFile] = React.useState(null);
   const [storyCaption, setStoryCaption] = React.useState('');
+  const [storyTextMode, setStoryTextMode] = React.useState(false);
   const [storyBusy, setStoryBusy] = React.useState(false);
   const [storyError, setStoryError] = React.useState('');
   const [storyNotice, setStoryNotice] = React.useState('');
@@ -852,14 +853,31 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
 
   async function publishStory(event) {
     event.preventDefault();
-    if (!supabase || !session?.user?.id || !storyFile || storyBusy) return;
-    const isVideo = storyFile.type.startsWith('video/');
-    if (!isVideo && !storyFile.type.startsWith('image/')) {
+    if (!supabase || !session?.user?.id || storyBusy) return;
+    if (storyTextMode && !storyCaption.trim()) {
+      setStoryError('Write something first to share a text story.');
+      return;
+    }
+    if (!storyTextMode && !storyFile) {
+      setStoryError('Choose a photo or video, or tap Aa to create a text story.');
+      return;
+    }
+    const isVideo = !storyTextMode && !!storyFile?.type.startsWith('video/');
+    if (!storyTextMode && !isVideo && !storyFile?.type.startsWith('image/')) {
       setStoryError('Choose a photo or video for your story.');
       return;
     }
+    const uploadFile = storyTextMode ? new File([new Blob([(() => {
+      const esc = value => value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      const words = storyCaption.trim().slice(0,180).split(/\\s+/);
+      const lines = []; let line = '';
+      words.forEach(word => { const next = line ? line + ' ' + word : word; if (next.length > 22 && line) { lines.push(line); line = word; } else line = next; });
+      if (line) lines.push(line);
+      const text = lines.map((item,i) => '<text x="540" y="' + (850 - (lines.length-1)*38/2 + i*38) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="34" font-weight="700" fill="#ffffff">' + esc(item) + '</text>').join('');
+      return '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#25133f"/><stop offset=".55" stop-color="#7546b8"/><stop offset="1" stop-color="#d45b9f"/></linearGradient></defs><rect width="1080" height="1920" fill="url(#g)"/><text x="64" y="110" font-family="Arial,sans-serif" font-size="34" font-weight="700" fill="#ffffff">VYBORA</text>' + text + '<text x="540" y="1810" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" fill="#ffffffcc">YOUR WORLD • YOUR PEOPLE</text></svg>';
+    })())], 'vybora-text-story.svg', {type:'image/svg+xml'}) : storyFile;
     const maxBytes = isVideo ? 20 * 1024 * 1024 : 8 * 1024 * 1024;
-    if (storyFile.size > maxBytes) {
+    if (uploadFile.size > maxBytes) {
       setStoryError(isVideo ? 'Story videos must be 20 MB or smaller.' : 'Story photos must be 8 MB or smaller.');
       return;
     }
@@ -867,11 +885,11 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     setStoryError('');
     setStoryNotice('');
     try {
-      const rawExtension = (storyFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
+      const rawExtension = (uploadFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
       const extension = rawExtension.replace(/[^a-z0-9]/g, '') || (isVideo ? 'mp4' : 'jpg');
       const path = session.user.id + '/stories/' + crypto.randomUUID() + '.' + extension;
-      const { error: uploadError } = await supabase.storage.from('post-media').upload(path, storyFile, {
-        cacheControl: '3600', upsert: false, contentType: storyFile.type
+      const { error: uploadError } = await supabase.storage.from('post-media').upload(path, uploadFile, {
+        cacheControl: '3600', upsert: false, contentType: uploadFile.type
       });
       if (uploadError) throw uploadError;
       const mediaUrl = supabase.storage.from('post-media').getPublicUrl(path).data.publicUrl;
@@ -880,13 +898,14 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         user_id: session.user.id,
         media_url: mediaUrl,
         media_type: isVideo ? 'video' : 'image',
-        caption: storyCaption.trim().slice(0, 180),
+        caption: storyTextMode ? '' : storyCaption.trim().slice(0, 180),
         created_at: createdAt.toISOString(),
         expires_at: new Date(createdAt.getTime() + 24 * 60 * 60 * 1000).toISOString()
       });
       if (insertError) throw insertError;
       setStoryFile(null);
       setStoryCaption('');
+      setStoryTextMode(false);
       if (storyFileRef.current) storyFileRef.current.value = '';
       setStoryNotice('Your story is live and will disappear after 24 hours.');
       await loadStories();
@@ -1375,9 +1394,10 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
           {!session ? <p className="story-muted">Sign in to share and view stories.</p> : <>
             <form className="story-compose" onSubmit={publishStory}>
               <input ref={storyFileRef} className="story-file-input" type="file" accept="image/*,video/*" onChange={(event) => { setStoryFile(event.target.files?.[0] || null); setStoryError(''); }} />
-              <div className="story-media-tools" aria-label="Choose story media"><button type="button" onClick={() => storyFileRef.current?.click()}><span>◎</span><small>Camera</small></button><button type="button" onClick={() => storyFileRef.current?.click()}><span>▧</span><small>Gallery</small></button><button type="button" onClick={() => storyFileRef.current?.click()}><span>▶</span><small>Video</small></button><button type="button" onClick={() => storyFileRef.current?.click()}><span>Aa</span><small>Text</small></button></div>
-              <input className="story-caption-input" value={storyCaption} onChange={(event) => setStoryCaption(event.target.value)} maxLength={180} placeholder="Add a caption (optional)…" aria-label="Story caption" />
-              <button className="story-publish-button" type="submit" disabled={!storyFile || storyBusy}>{storyBusy ? 'Sharing…' : <>➤{' '}Share Story</>}</button>
+              <div className="story-media-tools" aria-label="Choose story media"><button type="button" onClick={() => {setStoryTextMode(false);storyFileRef.current?.click();}}><span>◎</span><small>Camera</small></button><button type="button" onClick={() => {setStoryTextMode(false);storyFileRef.current?.click();}}><span>▧</span><small>Gallery</small></button><button type="button" onClick={() => {setStoryTextMode(false);storyFileRef.current?.click();}}><span>▶</span><small>Video</small></button><button type="button" aria-pressed={storyTextMode} onClick={() => {setStoryTextMode(true);setStoryFile(null);if(storyFileRef.current)storyFileRef.current.value='';setStoryError('');}}><span>Aa</span><small>Text</small></button></div>
+              <input className="story-caption-input" value={storyCaption} onChange={(event) => setStoryCaption(event.target.value)} maxLength={180} placeholder={storyTextMode ? 'Write your text story…' : 'Add a caption (optional)…'} aria-label={storyTextMode ? 'Text story' : 'Story caption'} />
+              {storyTextMode && <p className="story-muted">Your words will appear on a VYBORA story card.</p>}
+              <button className="story-publish-button" type="submit" disabled={(!storyFile && !(storyTextMode && storyCaption.trim())) || storyBusy}>{storyBusy ? 'Sharing…' : <>➤{' '}Share Story</>}</button>
             </form>
             {storyError && <p className="story-alert" role="alert">{storyError}</p>}
             {storyNotice && <p className="story-notice" role="status">{storyNotice}</p>}
