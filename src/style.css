@@ -876,3 +876,55 @@ a,
 [role="button"] {
   touch-action: manipulation;
 }
+
+
+/* Mobile stability pass: reduce iOS double-tap zoom and prevent horizontal/layout jumps. */
+html {
+  width: 100%;
+  min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: auto;
+}
+body {
+  width: 100%;
+  min-width: 0;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+#root, .app, main {
+  min-width: 0;
+}
+img, video, canvas, iframe {
+  max-width: 100%;
+}
+button, a, input, textarea, select, [role="button"] {
+  touch-action: manipulation;
+}
+input, textarea, select {
+  font-size: 16px !important;
+  max-width: 100%;
+}
+@media (max-width: 560px) {
+  html, body {
+    overscroll-behavior-x: none;
+  }
+  .app {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+  .app > main {
+    overflow-x: clip;
+    overflow-anchor: none;
+    scroll-padding-top: 8px;
+  }
+  .mobile-nav {
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+  }
+  .app > header.instagram-topbar {
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+  }
+}
