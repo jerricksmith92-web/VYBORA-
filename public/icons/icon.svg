@@ -1,4 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="150" fill="#c5ff67"/>
-  <text x="256" y="330" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="280" font-weight="700" letter-spacing="-18" fill="#171a12">v.</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#080a16"/><stop offset="1" stop-color="#02030a"/></linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b72cff"/><stop offset=".52" stop-color="#6d38ff"/><stop offset="1" stop-color="#00d9ff"/></linearGradient>
+    <linearGradient id="lime" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e4ff79"/><stop offset="1" stop-color="#a8f52b"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect x="8" y="8" width="496" height="496" rx="110" fill="none" stroke="url(#ring)" stroke-width="3" opacity=".9"/>
+  <g fill="none" stroke="url(#ring)" stroke-width="12" stroke-linecap="round" filter="url(#glow)">
+    <path d="M151 143 A142 142 0 0 1 206 94"/>
+    <path d="M239 83 A142 142 0 0 1 290 82"/>
+    <path d="M324 94 A142 142 0 0 1 378 145"/>
+    <path d="M400 180 A142 142 0 0 1 406 226"/>
+    <path d="M401 268 A142 142 0 0 1 371 321"/>
+    <path d="M132 315 A142 142 0 0 1 111 258"/>
+    <path d="M111 220 A142 142 0 0 1 124 181"/>
+  </g>
+  <circle cx="256" cy="206" r="103" fill="url(#lime)"/>
+  <path d="M195 160 L232 160 L257 222 L283 160 L320 160 L277 254 Q270 269 256 269 Q242 269 235 254 Z" fill="#080b12"/>
+  <circle cx="307" cy="262" r="13" fill="#080b12"/>
+  <text x="256" y="389" text-anchor="middle" fill="#f7f8ff" font-family="Arial,Helvetica,sans-serif" font-size="46" font-weight="700" letter-spacing="7">VYBORA</text>
 </svg>
