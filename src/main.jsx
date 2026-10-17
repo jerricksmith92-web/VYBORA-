@@ -1410,50 +1410,8 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
       </button>
     )}</nav>
     <main>
-      {tab === 'Home' && <section className="welcome">
-        <p className="eyebrow">YOUR SPACE. YOUR PEOPLE.</p>
-        <h1>Stay close to<br /><em>your world.</em></h1>
-        <p className="muted">Share your moments. Find your people. Be yourself.</p>
-        <div className="pills"><span>✦ Your community</span><span>◉ Real moments</span></div>
-      </section>}
-
       {tab === 'Reels' ? <ReelsPanel session={session} /> : tab === 'Home' ? <>
-        <section className="stories">
-          <div className="sectionhead story-heading"><div className="story-heading-copy"><span className="story-brand-mark" aria-hidden="true">✦</span><div><h2>Stories</h2><p>Share what’s happening in your world ✨</p></div></div><span className="story-expiry">◷ &nbsp; Disappears after 24 hours</span></div>
-          {!session ? <p className="story-muted">Sign in to share and view stories.</p> : <>
-            <form className="story-compose" onSubmit={publishStory}>
-              <input ref={storyFileRef} className="story-file-input" type="file" accept="image/*,video/*" onChange={(event) => { setStoryFile(event.target.files?.[0] || null); setStoryError(''); }} />
-              <div className="story-media-tools" aria-label="Choose story media"><button type="button" onClick={() => {setStoryTextMode(false);storyFileRef.current?.click();}}><span>◎</span><small>Camera</small></button><button type="button" onClick={() => {setStoryTextMode(false);storyFileRef.current?.click();}}><span>▧</span><small>Gallery</small></button><button type="button" onClick={() => {setStoryTextMode(false);storyFileRef.current?.click();}}><span>▶</span><small>Video</small></button><button type="button" aria-pressed={storyTextMode} onClick={() => {setStoryTextMode(true);setStoryFile(null);if(storyFileRef.current)storyFileRef.current.value='';setStoryError('');}}><span>Aa</span><small>Text</small></button></div>
-              <input className="story-caption-input" value={storyCaption} onChange={(event) => setStoryCaption(event.target.value)} maxLength={180} placeholder={storyTextMode ? 'Write your text story…' : 'Add a caption (optional)…'} aria-label={storyTextMode ? 'Text story' : 'Story caption'} />
-              {storyTextMode && <p className="story-muted">Your words will appear on a VYBORA story card.</p>}
-              <button className="story-publish-button" type="submit" disabled={(!storyFile && !(storyTextMode && storyCaption.trim())) || storyBusy}>{storyBusy ? 'Sharing…' : <>➤{' '}Share Story</>}</button>
-            </form>
-            {storyError && <p className="story-alert" role="alert">{storyError}</p>}
-            {storyNotice && <p className="story-notice" role="status">{storyNotice}</p>}
-            <div className="storyrow storyrow-live">
-              <button className="story" type="button" onClick={() => {
-                const ownStories = stories.filter((item) => item.user_id === session.user.id);
-                if (ownStories.length) openStory(ownStories[0]);
-                else storyFileRef.current?.click();
-              }}>
-                <div className="ring ring0"><span>{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : '＋'}</span></div>
-                <small>{cleanUsername(myProfile?.username) || 'Your story'}</small>
-              </button>
-              {stories.filter((item) => item.user_id !== session.user.id).reduce((groups, item) => {
-                if (!groups.some((group) => group.user_id === item.user_id)) groups.push(item);
-                return groups;
-              }, []).map((story) => {
-                const profile = story.profile || {};
-                const label = profile.display_name || cleanUsername(profile.username) || 'VYBORA member';
-                return <button className="story" type="button" key={story.user_id} onClick={() => openStory(story)}>
-                  <div className="ring"><span>{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : label[0]?.toUpperCase()}</span></div>
-                  <small>{label}</small>
-                </button>;
-              })}
-            </div>
-            {!stories.length && <p className="story-muted">No active stories yet. Share the first moment ✦</p>}
-          </>}
-        </section>
+        <div className="home-simple-heading"><h1>Home</h1><p>Moments from your people</p></div>
         <section className="composer">
           <div className="avatar">{session?.user?.email?.[0]?.toUpperCase() || 'V'}</div>
           <div className="composebody">
