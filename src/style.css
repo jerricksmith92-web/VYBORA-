@@ -944,3 +944,40 @@ input,textarea,select{max-width:100%;min-width:0}
   .story-viewer-media{min-width:0;max-width:100%;overflow:hidden}
   .story-viewer-media img,.story-viewer-media video{max-width:100%;object-fit:contain}
 }
+
+
+/* iPhone chat keyboard mode: hide the app tab bar while composing and
+   let the active conversation occupy the available screen space. */
+@media (max-width: 560px) {
+  body:has(.message-composer input:focus) .mobile-nav,
+  body:has(.message-composer textarea:focus) .mobile-nav {
+    display: none !important;
+  }
+  body:has(.message-composer input:focus) .app > main,
+  body:has(.message-composer textarea:focus) .app > main {
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    min-height: 0;
+  }
+  body:has(.message-composer input:focus) .messages-panel:has(.chat-list-in-thread),
+  body:has(.message-composer textarea:focus) .messages-panel:has(.chat-list-in-thread) {
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+  body:has(.message-composer input:focus) .messages-panel:has(.chat-list-in-thread) .message-composer,
+  body:has(.message-composer textarea:focus) .messages-panel:has(.chat-list-in-thread) .message-composer {
+    position: sticky;
+    bottom: 0;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    background: var(--bg, #0d0b12);
+    z-index: 20;
+  }
+  .message-composer input:not([type=file]),
+  .message-composer textarea {
+    font-size: 16px !important;
+    line-height: 1.35;
+  }
+}
