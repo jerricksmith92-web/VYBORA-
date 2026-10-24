@@ -1178,3 +1178,17 @@ input,textarea,select{max-width:100%;min-width:0}
     display: none !important;
   }
 }
+
+
+/* Text-story entry point and composer */
+.home-text-story .home-story-ring { background:linear-gradient(145deg,#b7ff5e,#7d55f6); }
+.home-text-story-avatar { display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#2a1742,#100e19);color:#e4ffb8;font-size:24px;font-weight:850;letter-spacing:-1px; }
+.home-text-story-compose { flex-wrap:wrap;align-items:stretch;min-width:0; }
+.home-text-story-compose textarea { flex:1 1 100%;width:100%;min-width:0;resize:vertical;border:1px solid #41364f;border-radius:12px;background:#15111d;color:#fff;padding:12px;font:inherit;font-size:16px;line-height:1.45;outline:none; }
+.home-text-story-compose textarea:focus { border-color:#c5ff67;box-shadow:0 0 0 2px #c5ff6722; }
+.home-text-story-compose > span { color:#aaa0b7;font-size:12px;align-self:center;margin-right:auto; }
+.home-text-story-compose button { align-self:center; }
+@media(max-width:560px) {
+  .home-text-story-compose { width:100%; }
+  .home-text-story-compose button { padding:9px 11px; }
+}
