@@ -1192,3 +1192,17 @@ input,textarea,select{max-width:100%;min-width:0}
   .home-text-story-compose { width:100%; }
   .home-text-story-compose button { padding:9px 11px; }
 }
+
+
+/* Story creation choices open from the single plus button. */
+.home-story-choice { flex:1 1 100%;display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:12px;border:1px solid #393044;border-radius:14px;background:#15111d; }
+.home-story-choice > b { flex:1 1 100%;color:#fff;font-size:14px; }
+.home-story-choice button { border:1px solid #4a3c5d;border-radius:11px;background:#211a2c;color:#f8f4ff;padding:10px 13px;font:inherit;font-size:14px;font-weight:650; }
+.home-story-choice button:active { transform:scale(.98); }
+@media(max-width:560px) {
+  .home-story-tray { flex-wrap:wrap; }
+  .home-story-choice { min-width:0; }
+  .home-story-choice button { flex:1 1 auto; }
+  .home-text-story-compose { flex:1 1 100%; }
+  .home-text-story-compose textarea { min-height:92px; }
+}
