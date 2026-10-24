@@ -1399,6 +1399,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
       <button className="brand" onClick={() => setTab('Home')} aria-label="VYBORA home"><span className="logo">v.</span><span>vybora</span></button>
       <span className="tag">YOUR WORLD, YOUR PEOPLE</span>
       <div className="topbar-actions">
+        <button className="topbar-icon global-refresh-button" onClick={() => window.location.reload()} aria-label="Refresh VYBORA" title="Refresh"><RefreshCw size={22} strokeWidth={1.9}/></button>
         <button className="topbar-icon" onClick={() => setTab('Notifications')} aria-label="Notifications"><Heart size={25} strokeWidth={1.9}/>{notifications.filter(n=>!n.is_read).length>0&&<i className="topbar-badge">{notifications.filter(n=>!n.is_read).length>99?'99+':notifications.filter(n=>!n.is_read).length}</i>}</button>
         <button className="topbar-icon" onClick={() => setTab('Messages')} aria-label="Messages"><Send size={24} strokeWidth={1.9}/>{unreadMessageCount>0&&<i className="topbar-badge">{unreadMessageCount>99?'99+':unreadMessageCount}</i>}</button>
         <button className="avatar header-avatar" onClick={() => setTab('Profile')} aria-label="Open profile">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || session?.user?.email || 'V')[0].toUpperCase()}</button>
