@@ -1447,6 +1447,10 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
             <span className="home-story-ring"><span className="home-story-avatar">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || 'V')[0].toUpperCase()}</span><i>+</i></span>
             <small>Your story</small>
           </button>
+          {stories.filter((item) => item.user_id === session?.user?.id).slice(0,1).map((story) => <button className="home-story-item home-own-story" type="button" key={story.id} onClick={() => openStory(story)} aria-label="View your story">
+            <span className="home-story-ring"><span className="home-story-avatar">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || 'V')[0].toUpperCase()}</span></span>
+            <small>Your story</small>
+          </button>)}
           {stories.filter((item) => item.user_id !== session?.user?.id).reduce((groups, item) => {
             if (!groups.some((group) => group.user_id === item.user_id)) groups.push(item);
             return groups;
