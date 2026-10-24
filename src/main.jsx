@@ -344,6 +344,30 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     return () => { supabase.removeChannel(channel); };
   }, [session?.user?.id]);
 
+  // Receive messages instantly while a conversation is open.
+  React.useEffect(() => {
+    if (!supabase || !session?.user?.id || !activeChatId || tab !== 'Messages') return undefined;
+    const channel = supabase.channel('vybora-chat-live-' + activeChatId)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: 'conversation_id=eq.' + activeChatId
+      }, (payload) => {
+        const incoming = payload.new;
+        if (!incoming?.id) return;
+        setChatMessages((current) => current.some((message) => message.id === incoming.id) ? current : [...current, incoming]);
+        if (incoming.sender_id !== session.user.id) loadChats();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeChatId, tab, session?.user?.id]);
+
+  React.useEffect(() => {
+    const list = messageListRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [chatMessages, activeChatId]);
+
   React.useEffect(() => {
     if (!supabase || !session?.user?.id) return undefined;
     let active = true;
