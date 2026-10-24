@@ -1412,6 +1412,27 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
     <main>
       {tab === 'Reels' ? <ReelsPanel session={session} /> : tab === 'Home' ? <>
         <div className="home-simple-heading"><h1>Home</h1><p>Moments from your people</p></div>
+        <section className="home-story-tray" aria-label="Stories">
+          <input ref={storyFileRef} className="story-file-input" type="file" accept="image/*,video/*" onChange={(event) => { setStoryFile(event.target.files?.[0] || null); setStoryError(''); }} />
+          <button className="home-story-item home-add-story" type="button" onClick={() => { setStoryTextMode(false); storyFileRef.current?.click(); }} aria-label="Add a story">
+            <span className="home-story-ring"><span className="home-story-avatar">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || 'V')[0].toUpperCase()}</span><i>+</i></span>
+            <small>Your story</small>
+          </button>
+          {stories.filter((item) => item.user_id !== session?.user?.id).reduce((groups, item) => {
+            if (!groups.some((group) => group.user_id === item.user_id)) groups.push(item);
+            return groups;
+          }, []).map((story) => {
+            const profile = story.profile || {};
+            const label = cleanUsername(profile.username) || profile.display_name || 'Member';
+            return <button className="home-story-item" type="button" key={story.user_id} onClick={() => openStory(story)} aria-label={'View story by ' + label}>
+              <span className="home-story-ring"><span className="home-story-avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : label[0]?.toUpperCase()}</span></span>
+              <small>{label}</small>
+            </button>;
+          })}
+          {storyFile && <div className="home-story-share"><span>{storyFile.name}</span><button type="button" onClick={publishStory} disabled={storyBusy}>{storyBusy ? 'Sharing…' : 'Share story'}</button><button type="button" onClick={() => {setStoryFile(null);if(storyFileRef.current)storyFileRef.current.value='';}}>Cancel</button></div>}
+          {storyError && <p className="story-alert" role="alert">{storyError}</p>}
+          {storyNotice && <p className="story-notice" role="status">{storyNotice}</p>}
+        </section>
         <section className="composer">
           <div className="avatar">{session?.user?.email?.[0]?.toUpperCase() || 'V'}</div>
           <div className="composebody">
