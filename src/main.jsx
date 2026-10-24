@@ -1442,9 +1442,13 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         <div className="home-simple-heading"><h1>Home</h1><p>Moments from your people</p></div>
         <section className="home-story-tray" aria-label="Stories">
           <input ref={storyFileRef} className="story-file-input" type="file" accept="image/*,video/*" onChange={(event) => { setStoryFile(event.target.files?.[0] || null); setStoryError(''); }} />
-          <button className="home-story-item home-add-story" type="button" onClick={() => { setStoryTextMode(false); storyFileRef.current?.click(); }} aria-label="Add a story">
+          <button className="home-story-item home-add-story" type="button" onClick={() => { setStoryTextMode(false); storyFileRef.current?.click(); }} aria-label="Add a photo or video story">
             <span className="home-story-ring"><span className="home-story-avatar">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || 'V')[0].toUpperCase()}</span><i>+</i></span>
             <small>Your story</small>
+          </button>
+          <button className="home-story-item home-text-story" type="button" onClick={() => { setStoryFile(null); if (storyFileRef.current) storyFileRef.current.value=''; setStoryTextMode(true); setStoryError(''); setStoryNotice(''); }} aria-label="Create a text story">
+            <span className="home-story-ring"><span className="home-story-avatar home-text-story-avatar">Aa</span></span>
+            <small>Text story</small>
           </button>
           {stories.filter((item) => item.user_id !== session?.user?.id).reduce((groups, item) => {
             if (!groups.some((group) => group.user_id === item.user_id)) groups.push(item);
@@ -1457,6 +1461,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
               <small>{label}</small>
             </button>;
           })}
+          {storyTextMode && <div className="home-story-share home-text-story-compose"><textarea value={storyCaption} onChange={event=>setStoryCaption(event.target.value.slice(0,180))} maxLength={180} rows={3} placeholder="Write a text story…" aria-label="Text story" autoFocus /><span>{storyCaption.length}/180</span><button type="button" onClick={publishStory} disabled={storyBusy||!storyCaption.trim()}>{storyBusy ? 'Sharing…' : 'Share text story'}</button><button type="button" onClick={() => {setStoryTextMode(false);setStoryCaption('');}}>Cancel</button></div>}
           {storyFile && <div className="home-story-share"><span>{storyFile.name}</span><button type="button" onClick={publishStory} disabled={storyBusy}>{storyBusy ? 'Sharing…' : 'Share story'}</button><button type="button" onClick={() => {setStoryFile(null);if(storyFileRef.current)storyFileRef.current.value='';}}>Cancel</button></div>}
           {storyError && <p className="story-alert" role="alert">{storyError}</p>}
           {storyNotice && <p className="story-notice" role="status">{storyNotice}</p>}
