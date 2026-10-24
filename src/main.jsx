@@ -247,6 +247,15 @@ function App() {
   const [storyError, setStoryError] = React.useState('');
   const [storyNotice, setStoryNotice] = React.useState('');
   const storyFileRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!activeStory || activeStory.media_type === 'video') return;
+    const timer = window.setTimeout(() => {
+      const index = stories.findIndex(item => item.id === activeStory.id);
+      if (index >= 0 && index < stories.length - 1) openStory(stories[index + 1]);
+      else setActiveStory(null);
+    }, 7000);
+    return () => window.clearTimeout(timer);
+  }, [activeStory?.id, activeStory?.media_type, stories]);
   const [exploreSearch, setExploreSearch] = React.useState('');
   const [exploreVideoMuted, setExploreVideoMuted] = React.useState({});
   const [notifications, setNotifications] = React.useState([]);
@@ -1443,14 +1452,13 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         <div className="home-simple-heading"><h1>Home</h1><p>Moments from your people</p></div>
         <section className="home-story-tray" aria-label="Stories">
           <input ref={storyFileRef} className="story-file-input" type="file" accept="image/*,video/*" onChange={(event) => { setStoryFile(event.target.files?.[0] || null); setStoryError(''); }} />
-          <button className="home-story-item home-add-story" type="button" onClick={() => { setStoryAddOpen(current => !current); setStoryError(''); }} aria-label="Add a story">
-            <span className="home-story-ring"><span className="home-story-avatar">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || 'V')[0].toUpperCase()}</span><i>+</i></span>
-            <small>Your story</small>
-          </button>
-          {stories.filter((item) => item.user_id === session?.user?.id).slice(0,1).map((story) => <button className="home-story-item home-own-story" type="button" key={story.id} onClick={() => openStory(story)} aria-label="View your story">
-            <span className="home-story-ring"><span className="home-story-avatar">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || 'V')[0].toUpperCase()}</span></span>
-            <small>Your story</small>
-          </button>)}
+          <div className="home-story-item home-add-story" aria-label="Your story">
+            <button className="home-story-open" type="button" onClick={() => { const ownStory = stories.find(item => item.user_id === session?.user?.id); if (ownStory) openStory(ownStory); else { setStoryAddOpen(current => !current); setStoryError(''); } }} aria-label="View your story">
+              <span className="home-story-ring"><span className="home-story-avatar">{myProfile?.avatar_url ? <img src={myProfile.avatar_url} alt="" /> : (myProfile?.display_name || cleanUsername(myProfile?.username) || 'V')[0].toUpperCase()}</span><i>+</i></span>
+              <small>Your story</small>
+            </button>
+            <button className="home-story-plus-action" type="button" onClick={() => { setStoryAddOpen(current => !current); setStoryError(''); }} aria-label="Add a story">+</button>
+          </div>
           {stories.filter((item) => item.user_id !== session?.user?.id).reduce((groups, item) => {
             if (!groups.some((group) => group.user_id === item.user_id)) groups.push(item);
             return groups;
@@ -1595,7 +1603,7 @@ const [profileEditOpen, setProfileEditOpen] = React.useState(false);
         <div className="story-progress-row">{stories.map((item,index)=><span className="story-progress-track" key={item.id}><i className={item.id===activeStory.id?'current':index<stories.findIndex(st=>st.id===activeStory.id)?'done':''}/></span>)}</div>
         <div className="story-viewer-top story-instagram-header"><span className="story-avatar-small">{activeStory.profile?.avatar_url ? <img src={activeStory.profile.avatar_url} alt="" /> : (activeStory.profile?.display_name || cleanUsername(activeStory.profile?.username) || 'V')[0].toUpperCase()}</span><span className="story-viewer-owner">{activeStory.profile?.display_name || cleanUsername(activeStory.profile?.username) || 'VYBORA member'}<small> • Story</small></span><button type="button" onClick={() => setActiveStory(null)} aria-label="Close story">×</button></div>
         <div className="story-viewer-media" onTouchStart={event=>{event.currentTarget.dataset.touchX=String(event.touches[0].clientX)}} onTouchEnd={event=>{const start=Number(event.currentTarget.dataset.touchX||0),delta=event.changedTouches[0].clientX-start;if(Math.abs(delta)>55){const i=stories.findIndex(item=>item.id===activeStory.id);if(delta<0&&i<stories.length-1)openStory(stories[i+1]);else if(delta>0&&i>0)openStory(stories[i-1]);}}}>
-          {activeStory.media_type === 'video' ? <video key={activeStory.id} src={activeStory.media_url} autoPlay playsInline disablePictureInPicture /> : <img key={activeStory.id} src={activeStory.media_url} alt="Story" />}
+          {activeStory.media_type === 'video' ? <video key={activeStory.id} src={activeStory.media_url} autoPlay playsInline onEnded={() => { const i=stories.findIndex(item=>item.id===activeStory.id); if(i>=0&&i<stories.length-1) openStory(stories[i+1]); else setActiveStory(null); }} disablePictureInPicture /> : <img key={activeStory.id} src={activeStory.media_url} alt="Story" />}
           {activeStory.caption && <p className="story-viewer-caption">{activeStory.caption}</p>}
           <button type="button" className="story-tap-zone story-tap-left" aria-label="Previous story" disabled={stories.findIndex(item => item.id === activeStory.id) <= 0} onClick={() => { const i = stories.findIndex(item => item.id === activeStory.id); if (i > 0) openStory(stories[i - 1]); }} />
           <button type="button" className="story-tap-zone story-tap-right" aria-label="Next story" disabled={stories.findIndex(item => item.id === activeStory.id) >= stories.length - 1} onClick={() => { const i = stories.findIndex(item => item.id === activeStory.id); if (i >= 0 && i < stories.length - 1) openStory(stories[i + 1]); }} />
