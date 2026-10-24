@@ -1115,3 +1115,66 @@ input,textarea,select{max-width:100%;min-width:0}
   .home-story-ring { width: 70px; height: 70px; }
   .home-story-item small { width: 72px; }
 }
+
+
+/* Messaging polish: stable flex layout and iPhone keyboard-safe composer. */
+.messages-panel {
+  min-height: 0;
+}
+.chat-layout {
+  min-height: 0;
+}
+.chat-thread {
+  min-height: 0;
+}
+.message-list {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+.message-composer {
+  flex-shrink: 0;
+}
+.message-composer input[aria-label="Write a message"] {
+  min-width: 0;
+  font-size: 16px !important;
+  line-height: 1.35;
+}
+@media (max-width: 560px) {
+  .messages-panel {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  .chat-layout,
+  .chat-thread {
+    min-height: 0;
+  }
+  .chat-thread {
+    display: flex;
+    flex-direction: column;
+  }
+  .message-list {
+    flex: 1 1 auto;
+    min-height: 120px;
+    max-height: none;
+  }
+  .message-composer {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    gap: 8px;
+    padding: 10px 8px max(10px, env(safe-area-inset-bottom));
+    background: #0d0b12;
+    border-top: 1px solid #30283a;
+    z-index: 30;
+  }
+  .message-composer input[aria-label="Write a message"] {
+    flex: 1 1 auto;
+    width: 0;
+  }
+  .message-composer button[type="submit"] {
+    flex: 0 0 auto;
+  }
+  body:has(.message-composer input[aria-label="Write a message"]:focus) .mobile-nav {
+    display: none !important;
+  }
+}
