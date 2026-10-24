@@ -23,7 +23,7 @@ function ReelsPanel({ session }) {
   const [notice, setNotice] = React.useState('');
   const [commentDrafts, setCommentDrafts] = React.useState({});
   const [openComments, setOpenComments] = React.useState({});
-  const [soundOn, setSoundOn] = React.useState(false);
+  const [soundReelId, setSoundReelId] = React.useState('');
   const fileRef = React.useRef(null);
 
   const loadReels = React.useCallback(async () => {
@@ -102,8 +102,11 @@ function ReelsPanel({ session }) {
   }, [reels]);
 
   React.useEffect(() => {
-    document.querySelectorAll(".reel-video").forEach(video => { video.muted = !soundOn; });
-  }, [soundOn, reels]);
+    document.querySelectorAll(".reel-video").forEach(video => {
+      const reelId = video.closest("[data-reel-id]")?.getAttribute("data-reel-id");
+      video.muted = !soundReelId || reelId !== soundReelId;
+    });
+  }, [soundReelId, reels]);
 
   async function publishReel(event) {
     event.preventDefault();
@@ -165,9 +168,9 @@ function ReelsPanel({ session }) {
     {notice && <p className="reel-notice" role="status">{notice}</p>}
     {busy && !reels.length && <p className="reels-muted">Loading Reels…</p>}
     {!busy && !reels.length && !error && <div className="reels-empty"><span>▶</span><h3>Your next favourite video goes here.</h3><p>Be the first to share a Reel with the VYBORA community.</p></div>}
-    <div className="reels-feed">{reels.map((reel,index)=><article className="reel-card" key={reel.id}>
+    <div className="reels-feed">{reels.map((reel,index)=><article className="reel-card" data-reel-id={reel.id} key={reel.id}>
       <video className="reel-video" src={reel.video_url} autoPlay muted={!soundOn} playsInline disablePictureInPicture preload={index===0?"auto":"none"} loop controls={false} onClick={e=>{const v=e.currentTarget;if(v.paused)v.play().catch(()=>{});else v.pause();}} onLoadedData={e=>{if(e.currentTarget.closest(".reel-card")?.getBoundingClientRect().top < window.innerHeight * 0.65)e.currentTarget.play().catch(()=>{});}} />
-      <button type="button" className="reel-sound-toggle" aria-label={soundOn?"Mute Reel sound":"Turn Reel sound on"} onClick={()=>setSoundOn(current=>!current)}>{soundOn?<Volume2 size={22}/>:<VolumeX size={22}/>}<span>{soundOn?"Sound on":"Sound off"}</span></button>
+      <button type="button" className="reel-sound-toggle" aria-label={soundReelId===reel.id?"Mute Reel sound":"Turn this Reel sound on"} onClick={event=>{const video=event.currentTarget.closest(".reel-card")?.querySelector("video");const turningOn=soundReelId!==reel.id;if(video){video.muted=!turningOn;if(turningOn)video.play().catch(()=>{});}setSoundReelId(turningOn?reel.id:"");}}>{soundReelId===reel.id?<Volume2 size={22}/>:<VolumeX size={22}/>}<span>{soundReelId===reel.id?"Sound on":"Sound off"}</span></button>
       <div className="reel-overlay-bottom">
         <div className="reel-author"><span className="reel-avatar">{reel.profile?.avatar_url?<img src={reel.profile.avatar_url} alt="" />:(reel.profile?.display_name||cleanUsername(reel.profile?.username)||'V')[0].toUpperCase()}</span><span><b>{reel.profile?.display_name||cleanUsername(reel.profile?.username)||'VYBORA member'}</b><small>@{cleanUsername(reel.profile?.username)||'member'}</small></span></div>
         {reel.caption && <p className="reel-caption">{reel.caption}</p>}
